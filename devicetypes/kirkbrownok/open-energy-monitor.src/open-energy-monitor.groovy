@@ -115,12 +115,12 @@ def parse(String message) {
         //TRACE(body)
         def slurper = new JsonSlurper()
         def tstat = slurper.parseText(body)
-        int EMonSum = tstat.EMpower[0].toFloat()
+        float EMonSum = tstat.EMpower[0].toFloat()
         int removeEvery = 0
         int numOfSamples = tstat.EMpower.size()
-        //if (numOfSamples > 10 ) { numOfSamples = 10 }
         int csvTime = (now()/1000).toFloat().round()
         TRACE("Number of samples: ${numOfSamples} at ${csvTime}")
+        //def csv = "${meterNumber},${tstat.EMpower[0].toFloat()},${csvTime-numOfSamples}"
         def csv = "${meterNumber},${tstat.EMpower[0].toFloat()},${csvTime-numOfSamples}"
         state.removeCounter = 1
         if (numOfSamples > 100) {
@@ -134,10 +134,11 @@ def parse(String message) {
         for (i in 1..numOfSamples - 1) {          	
                 EMonSum += tstat.EMpower[i].toFloat()
                 if (state.removeCounter == removeEvery){
-                	TRACE("removed:${meterNumber},${tstat.EMpower[i].toFloat()},${csvTime-10+i}")
+                
                     state.removeCounter = 1
                 } else {
-                	csv = "${csv},${meterNumber},${tstat.EMpower[i].toFloat()},${csvTime-10+i}"
+                //	csv = "${csv},${meterNumber},${tstat.EMpower[i].toFloat()},${csvTime-numOfSamples+i}"
+                	csv = "${csv},${meterNumber},${tstat.EMpower[i].toFloat()},${csvTime-numOfSamples+i}"
                     state.removeCounter = state.removeCounter +1
                 }
 		}
@@ -157,11 +158,11 @@ def parse(String message) {
     		httpPost(postParams) {   
             resp -> 
             resp.headers.each {
-            	log.debug "${it.name} : ${it.value}"
+            	//log.debug "${it.name} : ${it.value}"
                 if (it.name == "Content-Length") {
-                	log.debug "CL: ${it.value}"
+                	//log.debug "CL: ${it.value}"
                     if (it.value == "2") {
-                    	log.info "Succ"
+                    	log.info "OK Success"
                     	state.PWsuccess = state.PWsuccess + 1
                 		sendEvent([name: "PWsuccess", value: state.PWsuccess])
                     } else {
@@ -224,11 +225,6 @@ def updated() {
     } else {
     	state.PWfailures = 0
         sendEvent([name: "PWfailures", value: state.PWfailures])
-    }
-    if (state.meter > 1) {
-    	//meter = 936374
-    } else {
-    	state.meter = 936374
     }
     
     //TRACE("Updated->Reset Counters")
@@ -359,7 +355,8 @@ private def parseTstatData(Map tstat) {
 	if (tstat.containsKey("usC")) {
         def ev = [
             name:   "power",
-            value:  ((tstat.usC.toFloat() + tstat.usD.toFloat())*1000.0).round(0)
+            //value:  ((tstat.usC.toFloat() + tstat.usD.toFloat())*1000.0).round(0)
+            value: (state.empower*1000).round(0)
         ]
         events << createEvent(ev)
         if(device.currentState("energy").date.getHours() == 0) {
