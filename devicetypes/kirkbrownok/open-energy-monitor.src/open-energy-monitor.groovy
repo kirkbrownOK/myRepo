@@ -92,7 +92,7 @@ metadata {
 }
 def parse(String message) {
     TRACE("parse(${message})")
-
+	log.debug "Basic ${plotwattApiKey.encodeAsBase64()}"
     def msg = stringToMap(message)
 
     if (msg.headers) {
@@ -131,64 +131,66 @@ def parse(String message) {
         	removeEvery = 0
         }
         TRACE("Remove Every: ${removeEvery}")
-        for (i in 1..numOfSamples - 1) {          	
-                EMonSum += tstat.EMpower[i].toFloat()
-                if (state.removeCounter == removeEvery){
-                
-                    state.removeCounter = 1
-                } else {
-                //	csv = "${csv},${meterNumber},${tstat.EMpower[i].toFloat()},${csvTime-numOfSamples+i}"
-                	csv = "${csv},${meterNumber},${tstat.EMpower[i].toFloat()},${csvTime-numOfSamples+i}"
-                    state.removeCounter = state.removeCounter +1
-                }
-		}
-                //"Host": "plotwatt.com",	
-        def postParams = [
-        uri: "https://www.plotwatt.com",
-        path: "/api/v2/push_readings",
-        headers: [ 
-        	Host : "plotwatt.com",
-        	Authorization : "Basic ${plotwattApiKey.encodeBase64()}",
-            Connection: "close"
-        ],
-        body: csv
-        ]
-        log.debug postParams
-        try {
-    		httpPost(postParams) {   
-            resp -> 
-            resp.headers.each {
-            	//log.debug "${it.name} : ${it.value}"
-                if (it.name == "Content-Length") {
-                	//log.debug "CL: ${it.value}"
-                    if (it.value == "2") {
-                    	log.info "OK Success"
-                    	state.PWsuccess = state.PWsuccess + 1
-                		sendEvent([name: "PWsuccess", value: state.PWsuccess])
+        if (numOfSamples > 1) {
+            for (i in 1..numOfSamples - 1) {          	
+                    EMonSum += tstat.EMpower[i].toFloat()
+                    if (state.removeCounter == removeEvery){
+
+                        state.removeCounter = 1
                     } else {
-                    	state.PWfailures = state.PWfailures + 1
-                		sendEvent([name: "PWfailures", value: state.PWfailures])
+                    //	csv = "${csv},${meterNumber},${tstat.EMpower[i].toFloat()},${csvTime-numOfSamples+i}"
+                        csv = "${csv},${meterNumber},${tstat.EMpower[i].toFloat()},${csvTime-numOfSamples+i}"
+                        state.removeCounter = state.removeCounter +1
                     }
-                }
-                
-        	}
-                
-    		}
-		} catch (e) {
-        	if ( e == "groovy.lang.StringWriterIOException: java.io.IOException: Stream closed") {
-            	log.info "stream closed as expected"
-                state.PWsuccess = state.PWsuccess + 1
-                sendEvent([name: "PWsuccess", value: state.PWsuccess])
-            } else {
-    			log.debug "something went wrong: $e"
-                state.PWfailures = state.PWfailures + 1
-                sendEvent([name: "PWfailures", value: state.PWfailures])
             }
-	    }
-        
-        state.empower = (EMonSum/numOfSamples)  
-        TRACE("EM SUM: ${EMonSum} Num of Samples: ${numOfSamples} Average: ${state.empower}")
-        return parseTstatData(tstat[1])
+                    //"Host": "plotwatt.com",	
+            def postParams = [
+            uri: "https://www.plotwatt.com",
+            path: "/api/v2/push_readings",
+            headers: [ 
+                Host : "plotwatt.com",
+                Authorization : "Basic ${plotwattApiKey.encodeAsBase64()}",
+                Connection: "close"
+            ],
+            body: csv
+            ]
+            log.debug postParams
+            try {
+                httpPost(postParams) {   
+                resp -> 
+                resp.headers.each {
+                    //log.debug "${it.name} : ${it.value}"
+                    if (it.name == "Content-Length") {
+                        //log.debug "CL: ${it.value}"
+                        if (it.value == "2") {
+                            log.info "OK Success"
+                            state.PWsuccess = state.PWsuccess + 1
+                            sendEvent([name: "PWsuccess", value: state.PWsuccess])
+                        } else {
+                            state.PWfailures = state.PWfailures + 1
+                            sendEvent([name: "PWfailures", value: state.PWfailures])
+                        }
+                    }
+
+                }
+
+                }
+            } catch (e) {
+                if ( e == "groovy.lang.StringWriterIOException: java.io.IOException: Stream closed") {
+                    log.info "stream closed as expected"
+                    state.PWsuccess = state.PWsuccess + 1
+                    sendEvent([name: "PWsuccess", value: state.PWsuccess])
+                } else {
+                    log.debug "something went wrong: $e"
+                    state.PWfailures = state.PWfailures + 1
+                    sendEvent([name: "PWfailures", value: state.PWfailures])
+                }
+            }
+
+            state.empower = (EMonSum/numOfSamples)  
+            TRACE("EM SUM: ${EMonSum} Num of Samples: ${numOfSamples} Average: ${state.empower}")
+            return parseTstatData(tstat[1])
+        }
     } else if (msg.containsKey("simulator")) {
         // simulator input
         return parseTstatData(msg)
