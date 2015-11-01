@@ -35,6 +35,8 @@ metadata {
         attribute "riatasCar", "number"
         attribute "walkBy", "number"
         attribute "contact2", "string"
+        attribute "contact3", "string"
+        attribute "contact4", "string"
         
         
         command "onC"
@@ -51,8 +53,16 @@ metadata {
 
     tiles {
         standardTile("contact2", "device.contact2", width: 1, height: 1, inactiveLabel: false) {
-            state "open", label: '${name}', icon: "st.contact.contact.open", backgroundColor: "#ffa81e"
-            state "closed", label: '${name}', icon: "st.contact.contact.closed", backgroundColor: "#79b821"
+            state "open", label: '2: ${name}', icon: "st.contact.contact.open", backgroundColor: "#ffa81e"
+            state "closed", label: '2: ${name}', icon: "st.contact.contact.closed", backgroundColor: "#79b821"
+        }
+        standardTile("contact3", "device.contact3", width: 1, height: 1, inactiveLabel: false) {
+            state "open", label: '3: ${name}', icon: "st.contact.contact.open", backgroundColor: "#ffa81e"
+            state "closed", label: '3: ${name}', icon: "st.contact.contact.closed", backgroundColor: "#79b821"
+        }
+        standardTile("contact4", "device.contact4", width: 1, height: 1, inactiveLabel: false) {
+            state "open", label: '4: ${name}', icon: "st.contact.contact.open", backgroundColor: "#ffa81e"
+            state "closed", label: '4: ${name}', icon: "st.contact.contact.closed", backgroundColor: "#79b821"
         }
         valueTile("temperature", "device.temperature") {
             state "temperature", label:'${currentValue}°', unit:"F",
@@ -114,8 +124,8 @@ metadata {
 			state("open", label:'${name}', icon:"st.contact.contact.open", backgroundColor:"#ffa81e", action: "refresh")
 		}
         standardTile("walkBy", "device.walkBy", width: 1, height: 1) {
-			state("off", label:'${name}', icon:"st.contact.contact.closed", backgroundColor:"#79b821", action: "refresh")
-			state("on", label:'${name}', icon:"st.contact.contact.open", backgroundColor:"#ffa81e", action: "refresh")
+			state("off", label:'Walk: ${name}', icon:"st.contact.contact.closed", backgroundColor:"#79b821", action: "refresh")
+			state("on", label:'Walk: ${name}', icon:"st.contact.contact.open", backgroundColor:"#ffa81e", action: "refresh")
 		}
         valueTile("kirksCar", "device.kirksCar") {
 			state "default", label:'${currentValue} in', action:"refresh",
@@ -139,8 +149,8 @@ metadata {
 		}
         main "switchFan"
         details (["switch", "temperature","switchFan","switchC","switchCon","switchCoff", 
-        	"switchA","switchAon","switchAoff","kirksCar","riatasCar","walkBy", "levelSliderControl", 
-            "motion","contact","contact2","refresh"])
+        	"switchA","switchAon","switchAoff","motion","contact","contact2","contact3",
+            "contact4","kirksCar","riatasCar","walkBy", "levelSliderControl","refresh"])
     }
 }
 
@@ -166,6 +176,8 @@ def parse(String description) {
             def motion1 = xmlTop.motion1[0] 
             def contact1 = xmlTop.contact1[0]
             def contact2 = xmlTop.contact2[0]
+            def contact3 = xmlTop.contact3[0]
+            def contact4 = xmlTop.contact4[0]
             def remoteCode = xmlTop.remoteCode[0]
             def livingRoomLight = xmlTop.lrl[0]
 
@@ -180,7 +192,7 @@ def parse(String description) {
                     try {
 
                         if (cmd == 'poll') {
-                            //log.info "Instructing child ${child.device.label} to poll"
+                            //log.info "Instructing 10:49 child ${child.device.label} to poll"
                             child.poll()
                         } else if (cmd == 'status-open') {
                             def value = 'open'
@@ -220,6 +232,28 @@ def parse(String description) {
                         }
                     } catch (e) {
                         log.info "No contact2 msg"
+                    }
+                    try {
+                        if (contact2.toFloat() == 0) {
+                            log.info "received Contact3 Signal: ${contact3.toFloat()}"
+                            child.sendEvent(name: 'contact3', value: 'closed')
+                        } else if (contact3.toFloat() ==1) {
+                        	log.info "received Contact3 Signal: ${contact3.toFloat()}"
+                            child.sendEvent(name: 'contact3', value: 'open')
+                        }
+                    } catch (e) {
+                        log.info "No contact3 msg"
+                    }
+                    try {
+                        if (contact4.toFloat() == 0) {
+                            log.info "received Contact4 Signal: ${contact4.toFloat()}"
+                            child.sendEvent(name: 'contact4', value: 'closed')
+                        } else if (contact4.toFloat() ==1) {
+                        	log.info "received Contact4 Signal: ${contact4.toFloat()}"
+                            child.sendEvent(name: 'contact4', value: 'open')
+                        }
+                    } catch (e) {
+                        log.info "No contact4 msg"
                     }
                     try {
                         if (contact1.toFloat() == 0) {
@@ -302,7 +336,7 @@ def parse(String description) {
 
             }
         } catch (e) {
-            TRACE("NO XML: Probably a GET response")
+            TRACE("NO XML: Probably a GET response: $e")
         }
     }
     null
