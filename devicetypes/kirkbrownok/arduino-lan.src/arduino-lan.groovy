@@ -34,6 +34,7 @@ metadata {
         attribute "kirksCar", "number"
         attribute "riatasCar", "number"
         attribute "walkBy", "number"
+        attribute "contact2", "string"
         
         
         command "onC"
@@ -49,7 +50,7 @@ metadata {
     }
 
     tiles {
-        standardTile("contact", "device.contact", width: 1, height: 1, inactiveLabel: false) {
+        standardTile("contact2", "device.contact2", width: 1, height: 1, inactiveLabel: false) {
             state "open", label: '${name}', icon: "st.contact.contact.open", backgroundColor: "#ffa81e"
             state "closed", label: '${name}', icon: "st.contact.contact.closed", backgroundColor: "#79b821"
         }
@@ -139,7 +140,7 @@ metadata {
         main "switchFan"
         details (["switch", "temperature","switchFan","switchC","switchCon","switchCoff", 
         	"switchA","switchAon","switchAoff","kirksCar","riatasCar","walkBy", "levelSliderControl", 
-            "motion","contact","refresh"])
+            "motion","contact","contact2","refresh"])
     }
 }
 
@@ -164,6 +165,7 @@ def parse(String description) {
             def cha = xmlTop.cha[0] //
             def motion1 = xmlTop.motion1[0] 
             def contact1 = xmlTop.contact1[0]
+            def contact2 = xmlTop.contact2[0]
             def remoteCode = xmlTop.remoteCode[0]
             def livingRoomLight = xmlTop.lrl[0]
 
@@ -207,6 +209,28 @@ def parse(String description) {
                         }
                     } catch (e) {
                         log.info "No Switch msg"
+                    }
+                    try {
+                        if (contact2.toFloat() == 0) {
+                            log.info "received Contact2 Signal: ${contact2.toFloat()}"
+                            child.sendEvent(name: 'contact2', value: 'closed')
+                        } else if (contact2.toFloat() ==1) {
+                        	log.info "received Contact2 Signal: ${contact2.toFloat()}"
+                            child.sendEvent(name: 'contact2', value: 'open')
+                        }
+                    } catch (e) {
+                        log.info "No contact2 msg"
+                    }
+                    try {
+                        if (contact1.toFloat() == 0) {
+                            log.info "received Contact1 Signal: ${contact1.toFloat()}"
+                            child.sendEvent(name: 'contact', value: 'closed')
+                        } else if (contact1.toFloat() ==1) {
+                        	log.info "received Contact Signal: ${contact1.toFloat()}"
+                            child.sendEvent(name: 'contact', value: 'open')
+                        }
+                    } catch (e) {
+                        log.info "No contact1msg"
                     }
                     try {
                         if (motion.toFloat() == 0) {
