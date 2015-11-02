@@ -52,6 +52,14 @@ metadata {
     }
 
     tiles {
+    	standardTile("contact", "device.contact", width: 1, height: 1) {
+			state("closed", label:'${name}', icon:"st.contact.contact.closed", backgroundColor:"#79b821", action: "refresh")
+			state("open", label:'${name}', icon:"st.contact.contact.open", backgroundColor:"#ffa81e", action: "refresh")
+		}
+        standardTile("contact1", "device.contact1", width: 1, height: 1, inactiveLabel: false) {
+            state "open", label: '1: ${name}', icon: "st.contact.contact.open", backgroundColor: "#ffa81e"
+            state "closed", label: '1: ${name}', icon: "st.contact.contact.closed", backgroundColor: "#79b821"
+        }
         standardTile("contact2", "device.contact2", width: 1, height: 1, inactiveLabel: false) {
             state "open", label: '2: ${name}', icon: "st.contact.contact.open", backgroundColor: "#ffa81e"
             state "closed", label: '2: ${name}', icon: "st.contact.contact.closed", backgroundColor: "#79b821"
@@ -119,10 +127,7 @@ metadata {
 			state("active", label:'motion', icon:"st.motion.motion.active", backgroundColor:"#53a7c0")
 			state("inactive", label:'no motion', icon:"st.motion.motion.inactive", backgroundColor:"#ffffff")
         }
-        standardTile("contact", "device.contact", width: 1, height: 1) {
-			state("closed", label:'${name}', icon:"st.contact.contact.closed", backgroundColor:"#79b821", action: "refresh")
-			state("open", label:'${name}', icon:"st.contact.contact.open", backgroundColor:"#ffa81e", action: "refresh")
-		}
+        
         standardTile("walkBy", "device.walkBy", width: 1, height: 1) {
 			state("off", label:'Walk: ${name}', icon:"st.contact.contact.closed", backgroundColor:"#79b821", action: "refresh")
 			state("on", label:'Walk: ${name}', icon:"st.contact.contact.open", backgroundColor:"#ffa81e", action: "refresh")
@@ -149,7 +154,7 @@ metadata {
 		}
         main "switchFan"
         details (["switch", "temperature","switchFan","switchC","switchCon","switchCoff", 
-        	"switchA","switchAon","switchAoff","motion","contact","contact2","contact3",
+        	"switchA","switchAon","switchAoff","motion","contact","contact1","contact2","contact3",
             "contact4","kirksCar","riatasCar","walkBy", "levelSliderControl","refresh"])
     }
 }
@@ -183,7 +188,7 @@ def parse(String description) {
 
             def targetUsn = xmlTop.usn[0].toString()
 
-            TRACE( "Processing command ${cmd} val: ${val} for ${targetUsn}")
+            //TRACE( "Processing command ${cmd} val: ${val} for ${targetUsn}")
 
             parent.getChildDevices().each { child ->
                 def childUsn = child.getDataValue("ssdpUSN").toString()
@@ -197,11 +202,11 @@ def parse(String description) {
                         } else if (cmd == 'status-open') {
                             def value = 'open'
                             log.info "Updating ${child.device.label} to ${value}"
-                            child.sendEvent(name: 'contact', value: value)
+                            //child.sendEvent(name: 'contact', value: value)
                         } else if (cmd == 'status-closed') {
                             def value = 'closed'
                             log.info "Updating ${child.device.label} to ${value}"
-                            child.sendEvent(name: 'contact', value: value)
+                            //child.sendEvent(name: 'contact', value: value)
                         }
                     } catch (e) {
                         //log.info "No Cmd"
@@ -223,23 +228,35 @@ def parse(String description) {
                         log.info "No Switch msg"
                     }
                     try {
+                        if (contact1.toFloat() == 0) {
+                            log.info "received Contact1 Signal: ${contact1.toFloat()}"
+                            child.sendEvent([name: 'contact1', value: 'closed', name: 'contact', value: 'Sensor1:close'])
+                        } else if (contact1.toFloat() ==1) {
+                        	log.info "received Contact Signal: ${contact1.toFloat()}"
+                            child.sendEvent([name: 'contact1', value: 'open', name: 'contact', value: 'Sensor1:open'])
+                        }
+                    } catch (e) {
+                        log.info "No contact1 msg"
+                    }
+                    try {
                         if (contact2.toFloat() == 0) {
                             log.info "received Contact2 Signal: ${contact2.toFloat()}"
-                            child.sendEvent(name: 'contact2', value: 'closed')
+                            child.sendEvent([name: 'contact2', value: 'closed', name:'contact',value:'Sensor2:close'])
+                            
                         } else if (contact2.toFloat() ==1) {
                         	log.info "received Contact2 Signal: ${contact2.toFloat()}"
-                            child.sendEvent(name: 'contact2', value: 'open')
+                            child.sendEvent([name: 'contact2', value: 'open', name:'contact',value:'Sensor2:open'])
                         }
                     } catch (e) {
                         log.info "No contact2 msg"
                     }
                     try {
-                        if (contact2.toFloat() == 0) {
+                        if (contact3.toFloat() == 0) {
                             log.info "received Contact3 Signal: ${contact3.toFloat()}"
-                            child.sendEvent(name: 'contact3', value: 'closed')
+                            child.sendEvent([name: 'contact3', value: 'closed', name:'contact',value:'Sensor3:close'])
                         } else if (contact3.toFloat() ==1) {
                         	log.info "received Contact3 Signal: ${contact3.toFloat()}"
-                            child.sendEvent(name: 'contact3', value: 'open')
+                            child.sendEvent([name: 'contact3', value: 'open', name:'contact',value:'Sensor3:open'])
                         }
                     } catch (e) {
                         log.info "No contact3 msg"
@@ -247,25 +264,15 @@ def parse(String description) {
                     try {
                         if (contact4.toFloat() == 0) {
                             log.info "received Contact4 Signal: ${contact4.toFloat()}"
-                            child.sendEvent(name: 'contact4', value: 'closed')
+                            child.sendEvent([name: 'contact4', value: 'closed', name:'contact',value:'Sensor4:close'])
                         } else if (contact4.toFloat() ==1) {
                         	log.info "received Contact4 Signal: ${contact4.toFloat()}"
-                            child.sendEvent(name: 'contact4', value: 'open')
+                            child.sendEvent([name: 'contact4', value: 'open', name:'contact',value:'Sensor4:open'])
                         }
                     } catch (e) {
                         log.info "No contact4 msg"
                     }
-                    try {
-                        if (contact1.toFloat() == 0) {
-                            log.info "received Contact1 Signal: ${contact1.toFloat()}"
-                            child.sendEvent(name: 'contact', value: 'closed')
-                        } else if (contact1.toFloat() ==1) {
-                        	log.info "received Contact Signal: ${contact1.toFloat()}"
-                            child.sendEvent(name: 'contact', value: 'open')
-                        }
-                    } catch (e) {
-                        log.info "No contact1msg"
-                    }
+                    
                     try {
                         if (motion.toFloat() == 0) {
                             log.info "received Motion Signal: ${motion.toFloat()}"
