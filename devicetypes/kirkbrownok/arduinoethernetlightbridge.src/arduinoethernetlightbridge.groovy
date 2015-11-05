@@ -577,7 +577,7 @@ private def parseChannelOutlet(val) {
 }
 
 private def TRACE(message) {
-    log.debug message
+    //log.debug message
 }
 
 private def STATE() {
