@@ -92,7 +92,7 @@ metadata {
 }
 def parse(String message) {
     TRACE("parse(${message})")
-	log.debug "Basic ${plotwattApiKey.encodeAsBase64()}"
+	TRACE( "Basic ${plotwattApiKey.encodeAsBase64()}")
     def msg = stringToMap(message)
 
     if (msg.headers) {
@@ -154,7 +154,7 @@ def parse(String message) {
             ],
             body: csv
             ]
-            log.debug postParams
+            TRACE( postParams)
             try {
                 httpPost(postParams) {   
                 resp -> 
@@ -177,7 +177,7 @@ def parse(String message) {
                 }
             } catch (e) {
                 if ( e == "groovy.lang.StringWriterIOException: java.io.IOException: Stream closed") {
-                    log.info "stream closed as expected"
+                    TRACE("stream closed as expected")
                     state.PWsuccess = state.PWsuccess + 1
                     sendEvent([name: "PWsuccess", value: state.PWsuccess])
                 } else {
@@ -452,7 +452,7 @@ def resetDevice() {
 }
 
 private def TRACE(message) {
-    log.debug message
+    //log.debug message
 }
 
 private def STATE() {
