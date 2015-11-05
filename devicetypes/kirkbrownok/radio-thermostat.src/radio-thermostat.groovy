@@ -752,17 +752,17 @@ private def temperatureFtoC(Float tempF) {
 }
 
 private def TRACE(message) {
-    log.debug message
+    //log.debug message
 }
 
 private def STATE() {
-    log.debug "deviceNetworkId : ${device.deviceNetworkId}"
-    log.debug "temperature : ${device.currentValue("temperature")}"
-    log.debug "heatingSetpoint : ${device.currentValue("heatingSetpoint")}"
-    log.debug "coolingSetpoint : ${device.currentValue("coolingSetpoint")}"
-    log.debug "thermostatMode : ${device.currentValue("thermostatMode")}"
-    log.debug "thermostatFanMode : ${device.currentValue("thermostatFanMode")}"
-    log.debug "thermostatOperatingState : ${device.currentValue("thermostatOperatingState")}"
-    log.debug "fanState : ${device.currentValue("fanState")}"
-    log.debug "hold : ${device.currentValue("hold")}"
+    //log.debug "deviceNetworkId : ${device.deviceNetworkId}"
+    //log.debug "temperature : ${device.currentValue("temperature")}"
+    //log.debug "heatingSetpoint : ${device.currentValue("heatingSetpoint")}"
+    //log.debug "coolingSetpoint : ${device.currentValue("coolingSetpoint")}"
+    //log.debug "thermostatMode : ${device.currentValue("thermostatMode")}"
+    //log.debug "thermostatFanMode : ${device.currentValue("thermostatFanMode")}"
+    //log.debug "thermostatOperatingState : ${device.currentValue("thermostatOperatingState")}"
+    //log.debug "fanState : ${device.currentValue("fanState")}"
+    //log.debug "hold : ${device.currentValue("hold")}"
 }
