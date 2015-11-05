@@ -342,7 +342,7 @@ def resetDevice() {
 
 
 private def TRACE(message) {
-    log.debug message
+    //log.debug message
 }
 
 private def STATE() {
