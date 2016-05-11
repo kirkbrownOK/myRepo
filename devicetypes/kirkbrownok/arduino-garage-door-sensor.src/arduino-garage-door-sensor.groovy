@@ -305,12 +305,17 @@ private def parseTstatData(Map tstat) {
             events << createEvent(ev)
             if ( tstat.lastReset == device.currentValue("lastReset")) {
             	TRACE("lastReset received but same as last time")
-                state.failedMessageCount = state.failedMessageCount + 1
+                if( now() - tstat.lastReset > 50000) {
+                	state.failedMessageCount = state.failedMessageCount + 1
+                }
+                else {
+                	TRACE("Ignoring failed message because its within 50 seconds of the alst one")
+                }    
             } else {
             	state.failedMessageCount = 0 //Valid message received
                 state.lastTimeReceived = now()
             }
-            ev = [ name: "failedMsg", value: state.failedMessageCount, descriptionText: "Determined from Message" ]
+            ev = [ name: "failedMsg", value: state.failedMessageCount]
             events << createEvent(ev)
             ev = [ name: "lastReset", value: tstat.lastReset ]
             events << createEvent(ev)
@@ -342,7 +347,7 @@ def resetDevice() {
 
 
 private def TRACE(message) {
-    //log.debug message
+    log.debug message
 }
 
 private def STATE() {

@@ -1,5 +1,5 @@
 /**
- *  Arduino LAN Device Type
+ *  Orvibo Device Type
  *
  * 
  *
@@ -15,179 +15,36 @@
  */
 
 metadata {
-    definition (name: "Arduino LAN", namespace: "kirkbrownOK", author: "Kirk Brown") {
-        capability "Contact Sensor"
+    definition (name: "Orvibo LAN", namespace: "kirkbrownOK", author: "Kirk Brown") {
         capability "Polling"
         capability "Refresh"
-        capability "Temperature Measurement"
-        capability "Switch Level"
-		capability "Actuator"
-		capability "Indicator"
-        capability "Temperature Measurement"
+        capability "Actuator"
 		capability "Switch"
-        capability "Motion Sensor"
-        capability "Button"
-        
-        attribute "switchC", "string"
-        attribute "switchA", "string"
-        attribute "switchFan", "string"
-        attribute "switchWemo1", "string"
-        //attribute "level", "number"
-        attribute "kirksCar", "number"
-        attribute "riatasCar", "number"
-        attribute "walkBy", "number"
-        attribute "contact1", "string"
-        attribute "contact2", "string"
-        attribute "contact3", "string"
-        attribute "contact4", "string"
-        attribute "contact5", "string"
-        
-        
-        command "onC"
-        command "offC"
-        command "onA"
-        command "offA"
-        command "onFan"
-        command "offFan"
-        command "subscribe"
-        command "toggleSwitch"
-        command "wemoOn1"
-        command "wemoOff1"
-        command "refreshWemo1"
+
     }
 
     simulator {
     }
 
     tiles {
-    	standardTile("contact", "device.contact", width: 1, height: 1) {
-			state("closed", label:'${name}', icon:"st.contact.contact.closed", backgroundColor:"#79b821", action: "refresh")
-			state("open", label:'${name}', icon:"st.contact.contact.open", backgroundColor:"#ffa81e", action: "refresh")
-		}
-        standardTile("contact1", "device.contact1", width: 1, height: 1, inactiveLabel: false) {
-            state "open", label: '1: ${name}', icon: "st.contact.contact.open", backgroundColor: "#ffa81e"
-            state "closed", label: '1: ${name}', icon: "st.contact.contact.closed", backgroundColor: "#79b821"
-        }
-        standardTile("contact2", "device.contact2", width: 1, height: 1, inactiveLabel: false) {
-            state "open", label: '2: ${name}', icon: "st.contact.contact.open", backgroundColor: "#ffa81e"
-            state "closed", label: '2: ${name}', icon: "st.contact.contact.closed", backgroundColor: "#79b821"
-        }
-        standardTile("contact3", "device.contact3", width: 1, height: 1, inactiveLabel: false) {
-            state "open", label: '3: ${name}', icon: "st.contact.contact.open", backgroundColor: "#ffa81e"
-            state "closed", label: '3: ${name}', icon: "st.contact.contact.closed", backgroundColor: "#79b821"
-        }
-        standardTile("contact4", "device.contact4", width: 1, height: 1, inactiveLabel: false) {
-            state "open", label: '4: ${name}', icon: "st.contact.contact.open", backgroundColor: "#ffa81e"
-            state "closed", label: '4: ${name}', icon: "st.contact.contact.closed", backgroundColor: "#79b821"
-        }
-        standardTile("contact5", "device.contact5", width: 1, height: 1, inactiveLabel: false) {
-            state "open", label: '5: ${name}', icon: "st.contact.contact.open", backgroundColor: "#ffa81e"
-            state "closed", label: '5: ${name}', icon: "st.contact.contact.closed", backgroundColor: "#79b821"
-        }
-        valueTile("temperature", "device.temperature") {
-            state "temperature", label:'${currentValue}°', unit:"F",
-            backgroundColors:[
-                    [value: 12, color: "#153591"],
-                    [value: 25, color: "#1e9cbb"],
-                    [value: 37, color: "#90d2a7"],
-                    [value: 50, color: "#44b621"],
-                    [value: 62, color: "#f1d801"],
-                    [value: 75, color: "#d04e00"],
-                    [value: 87, color: "#bc2323"]
-                ]
-        }
+    	
         standardTile("switch", "device.switch", width: 1, height: 1) {
 			state("0", label:'${currentValue}', icon:"st.Electronics.electronics5", backgroundColor:"#79b821", action: "refresh")
 			state("1", label:'${currentValue}', icon:"st.Electronics.electronics5", backgroundColor:"#ffa81e", action: "refresh")
-            state("2", label:'${currentValue}', icon:"st.Electronics.electronics5", backgroundColor:"#ffa81e", action: "refresh")
-            state("3", label:'${currentValue}', icon:"st.Electronics.electronics5", backgroundColor:"#ffa81e", action: "refresh")
-            state("4", label:'${currentValue}', icon:"st.Electronics.electronics5", backgroundColor:"#ffa81e", action: "refresh")
-            state("5", label:'${currentValue}', icon:"st.Electronics.electronics5", backgroundColor:"#ffa81e", action: "refresh")
             
 		}
         standardTile("refresh", "device.switch", inactiveLabel: false, decoration: "flat") {
             state "default", label:'', action:"refresh.refresh", icon:"st.secondary.refresh"
         }
-        standardTile("switchFan", "device.switchFan", width: 1, height: 1, canChangeIcon: true, canChangeBackground: true) {
-			state "off", label: '${name}', action: "onFan", icon: "st.Lighting.light24", backgroundColor: "#ffffff"
-			state "on", label: '${name}', action: "offFan", icon: "st.Lighting.light24", backgroundColor: "#79b821"
-		}
-        standardTile("switchC", "device.switchC", width: 1, height: 1, canChangeIcon: true, canChangeBackground: true) {
-			state "off", label: 'G: ${name}', action: "onC", icon: "st.Appliances.appliances17", backgroundColor: "#ffffff"
-			state "on", label: 'G: ${name}', action: "offC", icon: "st.Appliances.appliances17", backgroundColor: "#79b821"
-		}
-        standardTile("switchCon", "device.switchC", width: 1, height: 1, canChangeIcon: true, canChangeBackground: true) {
-			state "default", label: 'Garage ON', action: "onC", icon: "st.Appliances.appliances17", backgroundColor: "#79b821"
-		}
-        standardTile("switchCoff", "device.switchC", width: 1, height: 1, canChangeIcon: true, canChangeBackground: true) {
-			state "default", label: 'Garage OFF', action: "offC", icon: "st.Appliances.appliances17", backgroundColor: "#ffffff"
-		}
-        standardTile("switchA", "device.switchA", width: 1, height: 1, canChangeIcon: true, canChangeBackground: true) {
-			state "off", label: 'Fan: ${name}', action: "onA", icon: "st.Appliances.appliances17", backgroundColor: "#ffffff"
-			state "on", label: 'Fan: ${name}', action: "offA", icon: "st.Appliances.appliances17", backgroundColor: "#79b821"
-		}
-        standardTile("switchAon", "device.switchA", width: 1, height: 1, canChangeIcon: true, canChangeBackground: true) {
-			state "default", label: 'Fan ON', action: "onA", icon: "st.Appliances.appliances17", backgroundColor: "#79b821"
-		}
-        standardTile("switchAoff", "device.switchA", width: 1, height: 1, canChangeIcon: true, canChangeBackground: true) {
-			state "default", label: 'Fan OFF', action: "offA", icon: "st.Appliances.appliances17", backgroundColor: "#ffffff"
-		}
-        standardTile("switchWemo1", "device.switchWemo1", width: 1, height: 1) {
-        	//state "default", label: 'Wemo1: ${value}', action: "refreshWemo1", backgroundColor: "#79b821"
-			state "off", label: 'Wemo1: ${name}', action: "refreshWemo1", icon:"st.motion.motion", backgroundColor: "#ffffff"
-			state "on", label: 'Wemo1: ${name}', action: "refreshWemo1", icon:"st.motion.motion", backgroundColor: "#79b821"
-            state "refresh", label: 'Wemo1: ${name}', action: "refreshWemo1", icon:"st.motion.motion", backgroundColor: "#ffff00"
-            state "error", label: 'Wemo1: ${name}', action: "refreshWemo1", icon:"st.motion.motion", backgroundColor: "#79b821"
-            
-		}
-        standardTile("switchWemoOn1", "device.switchWemo1", width: 1, height: 1, canChangeIcon: true, canChangeBackground: true) {
-			state "default", label: 'Wemo1 ON', action: "wemoOn1", icon: "st.Appliances.appliances17", backgroundColor: "#79b821"
-		}
-        standardTile("switchWemoOff1", "device.switchWemo1", width: 1, height: 1, canChangeIcon: true, canChangeBackground: true) {
-			state "default", label: 'Wemo1 OFF', action: "wemoOff1", icon: "st.Appliances.appliances17", backgroundColor: "#ffffff"
-		}
-		controlTile("levelSliderControl", "device.level", "slider", height: 1, width: 3, inactiveLabel: false) {
-			state "level", label: '${name}', action:"switch level.setLevel"
-		}
-        standardTile("motion", "device.motion", width: 1, height: 1) {
-			state("active", label:'motion', icon:"st.motion.motion.active", backgroundColor:"#53a7c0")
-			state("inactive", label:'no motion', icon:"st.motion.motion.inactive", backgroundColor:"#ffffff")
-        }
         
-        standardTile("walkBy", "device.walkBy", width: 1, height: 1) {
-			state("off", label:'Walk: ${name}', icon:"st.contact.contact.closed", backgroundColor:"#79b821", action: "refresh")
-			state("on", label:'Walk: ${name}', icon:"st.contact.contact.open", backgroundColor:"#ffa81e", action: "refresh")
-		}
-        valueTile("kirksCar", "device.kirksCar") {
-			state "default", label:'${currentValue} in', action:"refresh",
-            backgroundColors:[
-                    [value: 5, color: "#ff0000"], //Used for tornado distance
-                    [value: 36, color: "#3fff00"], //Green, good to go
-                    [value: 72, color: "#ffff00"], // In garage, could be better
-                    [value: 120, color: "#1900fc"], //10' from wall... do better
-                    [value: 175, color: "#000000"]
-                ]
-		}       
-        valueTile("riatasCar", "device.riatasCar") {
-			state "default", label:'${currentValue} in', action:"refresh",
-            backgroundColors:[
-                    [value: 24, color: "#ff0000"], //TOO CLOSE!
-                    [value: 45, color: "#ff02bf"], //Pink, good to go
-                    [value: 72, color: "#ffff00"], // In garage, could be better
-                    [value: 120, color: "#1900fc"], //10' from wall... do better
-                    [value: 175, color: "#000000"]
-                ]
-		}
-        main "switchFan"
-        details (["switch", "temperature","switchFan","switchC","switchCon","switchCoff", 
-        	"switchA","switchAon","switchAoff","switchWemo1","switchWemoOn1","switchWemoOff1","motion","contact","contact1","contact2","contact3",
-            "contact4","contact5","kirksCar","riatasCar","walkBy", "levelSliderControl","refresh"])
+        main "switch"
+        details (["switch","refresh"])
     }
 }
 
 // parse events into attributes
 def parse(String description) {
-	
+	TRACE(${description})
     def usn = getDataValue('ssdpUSN')
     TRACE( "Parsing Arduino DT ${device.deviceNetworkId} ${usn} '${description}'")
 

@@ -50,7 +50,8 @@ metadata {
         // Custom attributes
         attribute "fanState", "string"  // Fan operating state. Values: "on", "off"
         attribute "hold", "string"      // Target temperature Hold status. Values: "on", "off"
-		
+		attribute "heatingOverride", "number"
+        attribute "coolingOverride", "number"
         
         
         // Custom commands
@@ -63,6 +64,12 @@ metadata {
         command "fanOn"
         command "fanOff"
         command "fanAuto"
+        command "setHeatingOverride"
+        command "setCoolingOverride"
+        command "heatOverrideUp"
+        command "heatOverrideDown"
+        command "coolOverrideUp"
+        command "coolOverrideDown"        
     }
 
     tiles {
@@ -91,6 +98,18 @@ metadata {
                     [value: 96, color: "#bc2323"]
                 ]
         }
+        valueTile("heatingOverride", "device.heatingOverride", inactiveLabel:false) {
+            state "default", label:'${currentValue}°', unit:"F",
+                backgroundColors:[
+                    [value: 31, color: "#153591"],
+                    [value: 44, color: "#1e9cbb"],
+                    [value: 59, color: "#90d2a7"],
+                    [value: 74, color: "#44b621"],
+                    [value: 84, color: "#f1d801"],
+                    [value: 95, color: "#d04e00"],
+                    [value: 96, color: "#bc2323"]
+                ]
+        }
 
         valueTile("coolingSetpoint", "device.coolingSetpoint", inactiveLabel:false) {
             state "default", label:'${currentValue}°', unit:"F",
@@ -104,7 +123,33 @@ metadata {
                     [value: 96, color: "#bc2323"]
                 ]
         }
+		valueTile("coolingOverride", "device.coolingOverride", inactiveLabel:false) {
+            state "default", label:'${currentValue}°', unit:"F",
+                backgroundColors:[
+                    [value: 31, color: "#153591"],
+                    [value: 44, color: "#1e9cbb"],
+                    [value: 59, color: "#90d2a7"],
+                    [value: 74, color: "#44b621"],
+                    [value: 84, color: "#f1d801"],
+                    [value: 95, color: "#d04e00"],
+                    [value: 96, color: "#bc2323"]
+                ]
+        }
+        standardTile("heatOverrideUp", "device.heatingOverride", inactiveLabel:false, decoration:"flat") {
+            state "default", label:'H-O', icon:"st.custom.buttons.add-icon", action:"heatOverrideUp"
+        }
 
+        standardTile("heatOverrideDown", "device.heatingOverride", inactiveLabel:false, decoration:"flat") {
+            state "default", label:'H-O', icon:"st.custom.buttons.subtract-icon", action:"heatOverrideDown"
+        }
+
+        standardTile("coolOverrideUp", "device.coolingOverride", inactiveLabel:false, decoration:"flat") {
+            state "default", label:'C-O', icon:"st.custom.buttons.add-icon", action:"coolOverrideUp"
+        }
+
+        standardTile("coolOverrideDown", "device.coolingOverride", inactiveLabel:false, decoration:"flat") {
+            state "default", label:'C-O', icon:"st.custom.buttons.subtract-icon", action:"coolOverrideDown"
+        }        
         standardTile("heatLevelUp", "device.heatingSetpoint", inactiveLabel:false, decoration:"flat") {
             state "default", label:'Heating', icon:"st.custom.buttons.add-icon", action:"heatLevelUp"
         }
@@ -163,7 +208,10 @@ metadata {
         details(["temperature", "operatingState", "fanState",
             "heatingSetpoint", "heatLevelDown", "heatLevelUp",
             "coolingSetpoint", "coolLevelDown", "coolLevelUp",
-            "mode", "fanMode", "hold", "refresh","fanOn", "fanOff", "fanAuto"])
+            "mode", "fanMode", "hold", 
+            "heatingOverride", "heatOverrideDown", "heatOverrideUp",
+            "coolingOverride", "coolOverrideDown", "coolOverrideUp",
+            "refresh"])
     }
 
     simulator {
@@ -357,6 +405,16 @@ def setHeatingSetpoint(tempHeat) {
     }
 
     return writeTstatValue('it_heat', tempHeat)
+}
+// thermostat.setHeatingOverride
+def setHeatingOverride(tempHeat) {
+    TRACE("setHeatingOverrideSetpoint(${tempHeat})")
+	sendEvent([name:"heatingOverride",value: tempHeat,unit: getTemperatureScale()])
+
+    if (getTemperatureScale() == "C") {
+        tempHeat = temperatureCtoF(tempHeat)
+    }
+
 }
 
 // thermostat.setCoolingSetpoint
@@ -714,6 +772,87 @@ private def parseThermostatMode(val) {
     return values[val.toInteger()]
 }
 
+def heatOverrideDown() {
+    TRACE("heatOverrideDown()")
+
+    def currentT = device.currentValue("heatingOverride")?.toFloat()
+    if (!currentT) {
+        return
+    }
+
+    def limit = 50
+    def step = 1
+    if (getTemperatureScale() == "C") {
+        limit = 10
+        step = 0.5
+    }
+
+    if (currentT > limit) {
+        setHeatingOverride(currentT - step)
+    }
+}
+
+def heatOverrideUp() {
+    TRACE("heatOverrideUp()")
+
+    def currentT = device.currentValue("heatingOverride")?.toFloat()
+    if (!currentT) {
+        return
+    }
+
+    def limit = 80
+    def step = 1
+    if (getTemperatureScale() == "C") {
+        limit = 35
+        step = 0.5
+    }
+
+    if (currentT < limit) {
+        setHeatingOverride(currentT + step)
+    }
+}
+
+def coolOverrideDown() {
+    TRACE("coolOverrideDown()")
+
+    def currentT = device.currentValue("coolingOverride")?.toFloat()
+    if (!currentT) {
+    	setCoolingOverride(80)
+        return
+    }
+
+    def limit = 50
+    def step = 1
+    if (getTemperatureScale() == "C") {
+        limit = 10
+        step = 0.5
+    }
+
+    if (currentT > limit) {
+        setCoolingOverride(currentT - step)
+    }
+}
+
+def coolOverrideUp() {
+    TRACE("coolOverrideUp()")
+
+    def currentT = device.currentValue("coolingOverride")?.toFloat()
+    if (!currentT) {
+        return
+    }
+
+    def limit = 95
+    def step = 1
+    if (getTemperatureScale() == "C") {
+        limit = 35
+        step = 0.5
+    }
+
+    if (currentT < limit) {
+        setCoolingOverride(currentT + step)
+    }
+}
+
 private def parseFanMode(val) {
     def values = [
         "auto",     // 0
@@ -752,7 +891,7 @@ private def temperatureFtoC(Float tempF) {
 }
 
 private def TRACE(message) {
-    //log.debug message
+    log.debug message
 }
 
 private def STATE() {
