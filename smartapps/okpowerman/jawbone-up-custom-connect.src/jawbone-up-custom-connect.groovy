@@ -1,13 +1,13 @@
 /**
  *  Jawbone Service Manager
  *
- *  Author: Juan Risso
- *  Date: 2013-12-19
+ *  Author: OKpowerman
+ *  Date: 2016-1-19
  */
 definition(
 	name: "Jawbone UP Custom (Connect)",
 	namespace: "OKpowerman",
-	author: "Juan Pablo Risso",
+	author: "OKpowerman",
 	description: "Connect your Jawbone UP to SmartThings",
 	category: "SmartThings Labs",
 	iconUrl: "https://s3.amazonaws.com/smartapp-icons/Partner/jawbone-up.png",
