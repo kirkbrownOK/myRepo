@@ -36,13 +36,14 @@ def selectArduinoPage() {
         log.debug('Subscribing to updates')
         // subscribe to M-SEARCH answers from hub
         subscribe(location, null, locationHandler, [filterEvents:false])
+        subscribe(location, "ssdpTerm.urn:schemas-upnp-org:device:Arduino_LAN:1", locationHandler)
         state.subscribe = true
     }
 
     // Perform M-SEARCH
     log.debug('Performing discovery')
     //sendHubCommand(new physicalgraph.device.HubAction("lan discovery urn:schemas-upnp-org:device:Ard_Garage_Monitor:", physicalgraph.device.Protocol.LAN))
-	sendHubCommand(new physicalgraph.device.HubAction("lan discovery urn:schemas-upnp-org:device:Arduino_LAN:", physicalgraph.device.Protocol.LAN))
+	sendHubCommand(new physicalgraph.device.HubAction("lan discovery urn:schemas-upnp-org:device:Arduino_LAN:1", physicalgraph.device.Protocol.LAN))
     def devicesForDialog = getDevicesForDialog()
 
     // Only one page - can install or uninstall from this page
@@ -72,6 +73,7 @@ def getDevicesForDialog() {
 
 /* Get map containing discovered devices. Maps USN to parsed event. */
 def getDevices() {
+	/*
 	if(resetDevices == "Yes" && state.justReset == "No") { 
     	log.debug "RESET DEVICES"
         state.devices = [:]
@@ -80,6 +82,7 @@ def getDevices() {
      	state.justReset = "No"
         log.debug "Clear state.justReset"
      }
+     */
     
     if (!state.devices) { state.devices = [:] }
     log.debug("There are ${state.devices.size()} devices at this time")
@@ -98,7 +101,7 @@ def locationHandler(evt) {
     def hub = evt?.hubId
     def parsedEvent = parseDiscoveryMessage(description)
     parsedEvent << ["hub":hub]
-	log.debug "parsedEvent ${parsedEvent}"
+	//log.debug "parsedEvent ${parsedEvent}"
     if (parsedEvent?.ssdpTerm?.contains("schemas-upnp-org:device:Arduino_LAN:")) {
         def devices = getDevices()
 
@@ -198,6 +201,11 @@ def subscribeToDevices() {
 }
 
 private def parseDiscoveryMessage(String description) {
+	log.trace "PDM: ${parseLanMessage(description)}"
+    def myParts = description.split(',')
+    myParts.each { myPart ->
+    	//log.trace "${myPart.decodeBase64()}"
+        }
     def device = [:]
     def parts = description.split(',')
     parts.each { part ->
