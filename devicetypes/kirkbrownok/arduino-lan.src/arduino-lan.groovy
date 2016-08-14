@@ -30,6 +30,7 @@ metadata {
         
         attribute "switchC", "string"
         attribute "switchA", "string"
+        attribute "switchOrvibo1", "string"
         attribute "switchFan", "string"
         attribute "switchWemo1", "string"
         //attribute "level", "number"
@@ -41,12 +42,18 @@ metadata {
         attribute "contact3", "string"
         attribute "contact4", "string"
         attribute "contact5", "string"
+        attribute "contact6", "string"
+        attribute "contact7", "string"
+        attribute "contact8", "string"
         
         
         command "onC"
         command "offC"
         command "onA"
         command "offA"
+        command "orviboOn1"
+        command "orviboOff1"
+        command "refreshOrvibo1"
         command "onFan"
         command "offFan"
         command "subscribe"
@@ -83,6 +90,18 @@ metadata {
         standardTile("contact5", "device.contact5", width: 1, height: 1, inactiveLabel: false) {
             state "open", label: '5: ${name}', icon: "st.contact.contact.open", backgroundColor: "#ffa81e"
             state "closed", label: '5: ${name}', icon: "st.contact.contact.closed", backgroundColor: "#79b821"
+        }
+        standardTile("contact6", "device.contact6", width: 1, height: 1, inactiveLabel: false) {
+            state "open", label: '6: ${name}', icon: "st.contact.contact.open", backgroundColor: "#ffa81e"
+            state "closed", label: '6: ${name}', icon: "st.contact.contact.closed", backgroundColor: "#79b821"
+        }
+        standardTile("contact7", "device.contact7", width: 1, height: 1, inactiveLabel: false) {
+            state "open", label: '7: ${name}', icon: "st.contact.contact.open", backgroundColor: "#ffa81e"
+            state "closed", label: '7: ${name}', icon: "st.contact.contact.closed", backgroundColor: "#79b821"
+        }
+        standardTile("contact8", "device.contact8", width: 1, height: 1, inactiveLabel: false) {
+            state "open", label: '8: ${name}', icon: "st.contact.contact.open", backgroundColor: "#ffa81e"
+            state "closed", label: '8: ${name}', icon: "st.contact.contact.closed", backgroundColor: "#79b821"
         }
         valueTile("temperature", "device.temperature") {
             state "temperature", label:'${currentValue}°', unit:"F",
@@ -146,6 +165,20 @@ metadata {
         standardTile("switchWemoOff1", "device.switchWemo1", width: 1, height: 1, canChangeIcon: true, canChangeBackground: true) {
 			state "default", label: 'Wemo1 OFF', action: "wemoOff1", icon: "st.Appliances.appliances17", backgroundColor: "#ffffff"
 		}
+        standardTile("switchOrvibo1", "device.switchOrvibo1", width: 1, height: 1) {
+        	//state "default", label: 'Orvibo1: ${value}', action: "refreshOrvibo1", backgroundColor: "#79b821"
+			state "off", label: 'Orvibo1: ${name}', action: "refreshOrvibo1", icon:"st.motion.motion", backgroundColor: "#ffffff"
+			state "on", label: 'Orvibo1: ${name}', action: "refreshOrvibo1", icon:"st.motion.motion", backgroundColor: "#79b821"
+            state "refresh", label: 'Orvibo1: ${name}', action: "refreshOrvibo1", icon:"st.motion.motion", backgroundColor: "#ffff00"
+            state "error", label: 'Orvibo1: ${name}', action: "refreshOrvibo1", icon:"st.motion.motion", backgroundColor: "#79b821"
+            
+		}
+        standardTile("switchOrviboOn1", "device.switchOrvibo1", width: 1, height: 1, canChangeIcon: true, canChangeBackground: true) {
+			state "default", label: 'Orvibo1 ON', action: "orviboOn1", icon: "st.Appliances.appliances17", backgroundColor: "#79b821"
+		}
+        standardTile("switchOrviboOff1", "device.switchOrvibo1", width: 1, height: 1, canChangeIcon: true, canChangeBackground: true) {
+			state "default", label: 'Orvibo1 OFF', action: "orviboOff1", icon: "st.Appliances.appliances17", backgroundColor: "#ffffff"
+		}        
 		controlTile("levelSliderControl", "device.level", "slider", height: 1, width: 3, inactiveLabel: false) {
 			state "level", label: '${name}', action:"switch level.setLevel"
 		}
@@ -180,8 +213,9 @@ metadata {
 		}
         main "switchFan"
         details (["switch", "temperature","switchFan","switchC","switchCon","switchCoff", 
-        	"switchA","switchAon","switchAoff","switchWemo1","switchWemoOn1","switchWemoOff1","motion","contact","contact1","contact2","contact3",
-            "contact4","contact5","kirksCar","riatasCar","walkBy", "levelSliderControl","refresh"])
+        	"switchA","switchAon","switchAoff","switchWemo1","switchWemoOn1","switchWemoOff1",
+            "switchOrvibo1","switchOrviboOn1","switchOrviboOff1","motion","contact","contact1","contact2","contact3",
+            "contact4","contact5","contact6","contact7","contact8","kirksCar","riatasCar","walkBy", "levelSliderControl","refresh"])
     }
 }
 
@@ -206,12 +240,16 @@ def parse(String description) {
             def chc = xmlTop.chc[0] //
             def cha = xmlTop.cha[0] //
             def we1 = xmlTop.we1[0] //
+            def orvibo1 = xmlTop.or1[0]
             def motion1 = xmlTop.mn1[0] 
             def contact1 = xmlTop.ct1[0]
             def contact2 = xmlTop.ct2[0]
             def contact3 = xmlTop.ct3[0]
             def contact4 = xmlTop.ct4[0]
             def contact5 = xmlTop.ct5[0]
+            def contact6 = xmlTop.ct6[0]
+            def contact7 = xmlTop.ct7[0]
+            def contact8 = xmlTop.ct8[0]
             def remoteCode = xmlTop.remoteCode[0]
             def livingRoomLight = xmlTop.lrl[0]
 
@@ -412,6 +450,84 @@ def parse(String description) {
                         TRACE( "No contact5 msg")
                     }
                     try {
+                        if (contact6.toFloat() == 0) {
+                            TRACE( "received Contact6 Signal: ${contact6.toFloat()}")
+                            if(child.currentValue("contact6") != 'closed'){
+                            	ev = [
+                                    name:   "contact6",
+                                    value:  'closed',                                    
+                                ]
+                                events << createEvent(ev)
+                                ev = [name: 'contact', value: 'Sensor6:close'] 
+                            	events << createEvent(ev)                               	}
+                        } else if (contact6.toFloat() ==1) {
+                        	TRACE( "received Contact6 Signal: ${contact6.toFloat()}")
+                            if(child.currentValue("contact6") != 'open'){
+								ev = [
+                                    name:   "contact6",
+                                    value:  'open',                                    
+                                ]
+                                events << createEvent(ev)
+                                ev = [name: 'contact', value: 'Sensor6:open'] 
+                            	events << createEvent(ev)        
+							}
+                        }
+                    } catch (e) {
+                        TRACE( "No contact6 msg")
+                    }
+                    try {
+                        if (contact7.toFloat() == 0) {
+                            TRACE( "received Contact7 Signal: ${contact7.toFloat()}")
+                            if(child.currentValue("contact7") != 'closed'){
+                            	ev = [
+                                    name:   "contact7",
+                                    value:  'closed',                                    
+                                ]
+                                events << createEvent(ev)
+                                ev = [name: 'contact', value: 'Sensor7:close'] 
+                            	events << createEvent(ev)                               	}
+                        } else if (contact7.toFloat() ==1) {
+                        	TRACE( "received Contact7 Signal: ${contact7.toFloat()}")
+                            if(child.currentValue("contact7") != 'open'){
+								ev = [
+                                    name:   "contact7",
+                                    value:  'open',                                    
+                                ]
+                                events << createEvent(ev)
+                                ev = [name: 'contact', value: 'Sensor7:open'] 
+                            	events << createEvent(ev)        
+							}
+                        }
+                    } catch (e) {
+                        TRACE( "No contact7 msg")
+                    }
+                    try {
+                        if (contact8.toFloat() == 0) {
+                            TRACE( "received Contact8 Signal: ${contact8.toFloat()}")
+                            if(child.currentValue("contact8") != 'closed'){
+                            	ev = [
+                                    name:   "contact8",
+                                    value:  'closed',                                    
+                                ]
+                                events << createEvent(ev)
+                                ev = [name: 'contact', value: 'Sensor8:close'] 
+                            	events << createEvent(ev)                               	}
+                        } else if (contact8.toFloat() ==1) {
+                        	TRACE( "received Contact8 Signal: ${contact8.toFloat()}")
+                            if(child.currentValue("contact8") != 'open'){
+								ev = [
+                                    name:   "contact8",
+                                    value:  'open',                                    
+                                ]
+                                events << createEvent(ev)
+                                ev = [name: 'contact', value: 'Sensor8:open'] 
+                            	events << createEvent(ev)        
+							}
+                        }
+                    } catch (e) {
+                        TRACE( "No contact8 msg")
+                    }
+                    try {
                         if (motion.toFloat() == 0) {
                             TRACE( "received Motion Signal: ${motion.toFloat()}")
                             if (child.currentMotion != 'inactive') child.sendEvent(name: 'motion', value: 'inactive')
@@ -479,6 +595,20 @@ def parse(String description) {
                         }
                     } catch (e) {
                         TRACE( "No we1 in msg")
+                    }
+                    try {
+                        if (orvibo1.toFloat() == 0) {
+                            TRACE( "received or1 Signal: ${orvibo1.toFloat()}")
+                            child.sendEvent(name: 'switchOrvibo1', value: 'off')
+                        } else if (orvibo1.toFloat() == 1) {
+                            TRACE( "received or1 Signal: ${orvibo1.toFloat()}")
+                            child.sendEvent(name: 'switchOrvibo1', value: 'on')
+                        } else  {
+                        	TRACE( "received or1 error: ${orvibo1.toFloat()}")
+                            child.sendEvent(name: 'switchOrvibo1', value: 'error')
+                        }
+                    } catch (e) {
+                        TRACE( "No orvibo1 in msg")
                     }
                     try {
                         if (livingRoomFan.toFloat() >= 0) {
@@ -760,6 +890,28 @@ def refreshWemo1() {
 	TRACE("sending refreshWemo1()")
     sendEvent([name:"switchWemo1", value:"refresh"])
     return writeValue('cmd', 618)
+}
+def orviboOn1() {
+    TRACE("orviboon1A()")
+
+	TRACE("sending orviboon1()")
+    sendEvent([name:"switchOrvibo1", value:"on"])
+    return writeValue('cmd', 619)
+}
+
+def orviboOff1() {
+    TRACE("orvibooff1()")
+
+	TRACE("sending orvibooff1()")
+    sendEvent([name:"switchOrvibo1", value:"off"])
+    return writeValue('cmd', 620)
+}
+def refreshOrvibo1() {
+    TRACE("refreshOrvibo1()")
+
+	TRACE("sending refreshOrvibo1()")
+    sendEvent([name:"switchOrvibo1", value:"refresh"])
+    return writeValue('cmd', 621)
 }
 def toggleSwitch(switchNum) {
     TRACE("toggleSwitch() number ${switchNum}")
