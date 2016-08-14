@@ -26,7 +26,7 @@ import groovy.json.JsonSlurper
 
 preferences {
     input("wink_client_id", "text", title:"Wink API Client ID", required:true, displayDuringSetup: true)
-    input("wink_client_secret", "string", title:"TCP Port", required:true, displayDuringSetup:true)
+    input("wink_client_secret", "string", title:"Wink Client Secret", required:true, displayDuringSetup:true)
     input("user_id", "string", title: "Wink User ID", required:true, displayDuringSetup:true)
     input("user_password","string", title: "Wink User password", required:true, displayDuringSetup:true)
 }
@@ -180,7 +180,7 @@ private httpOauth() {
         	client_id: "e9af631f3850d6a3b66751daa60a0707",
     		client_secret: "c9718935c0ec65bb5208371ad8f6f83b",
     		username: "tokirkbrown@gmail.com",
-    		password: "apitest3",
+    		password: "Kimberly12",
             grant_type: "password" 
 /*
         	client_id: "consumer_key_goes_here",

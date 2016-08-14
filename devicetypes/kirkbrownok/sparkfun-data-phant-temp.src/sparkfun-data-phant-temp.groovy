@@ -125,9 +125,9 @@ def refresh() {
     	log.debug "response data: ${resp.data}"        
         }*/
    	httpGet(params) { resp ->
-        	resp.headers.each {
-        		TRACE( "${it.name} : ${it.value}")
-            }
+        	//resp.headers.each {
+        		//TRACE( "${it.name} : ${it.value}")
+            //}
             
             TRACE("data: ${resp.data}")
             TRACE("data size ${resp.data.size()}")

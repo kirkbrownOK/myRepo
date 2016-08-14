@@ -29,6 +29,7 @@ preferences {
         required:true, displayDuringSetup: true)
     input("confTcpPort", "number", title:"TCP Port",
         defaultValue:"80", required:true, displayDuringSetup:true)
+    input("MinutesOfError","number",title: "Only send error event if in error condition for this many minutes: ", defaultValue:10, required: false)
 }
 
 metadata {
@@ -39,6 +40,7 @@ metadata {
         capability "Sensor"
         capability "Refresh"
         capability "Polling"
+        capability "Switch"
         
         command "refresh"
 
@@ -85,6 +87,11 @@ metadata {
                     [value: 96, color: "#bc2323"]                
                 ]
 		}
+        standardTile("tempStatus", "device.switch", width: 1, height: 1, inactiveLabel:false) {
+            state "on", label: 'Normal', action: "refresh", icon: "st.Bath.bath13", backgroundColor: "#79b821"
+            state "off", label: 'No Data', action: "refresh", icon: "st.Bath.bath13", backgroundColor: "#FF0000"
+            state "error", label: 'Error', action: "refresh", icon: "st.Bath.bath13", backgroundColor: "#000000"
+        }
 		standardTile("refresh", "device.temperature", inactiveLabel: false, decoration: "flat") {
 			state "default", label:'', action:"refresh.refresh", icon:"st.secondary.refresh"
 		}
@@ -92,7 +99,7 @@ metadata {
 
         main(["temperature"])
 
-        details(["temperature", "temperature1", "humidity", "refresh"])
+        details(["temperature", "temperature1", "humidity","tempStatus", "refresh"])
     }
 
     simulator {
@@ -164,8 +171,17 @@ def poll() {
 def refresh() {
     TRACE("refresh()")
     STATE()
-
+    state.minutesoferror = MinutesOfError
+	state.lastRefreshRequest = now()
     setNetworkId(confIpAddr, confTcpPort)
+    //For initializing this needs to be uncommented.
+    //return apiGet("/bedroom")
+    state.minutesSinceUpdate = (state.lastRefreshRequest - state.lastSuccessfulMessage ) / 60000
+    if (state.minutesSinceUpdate > state.minutesoferror) {
+		log.error("Arduino hasn't responded in ${state.minutesSinceUpdate} minutes")
+        sendEvent([name: "switch", value: "error",desriptionText:"Arduino Not available"]) 
+        state.lastSuccessfulMessage = now()
+    }
     return apiGet("/bedroom")
 }
 
@@ -240,6 +256,12 @@ private def parseTstatData(Map tstat) {
         ]
 
         events << createEvent(ev)
+        ev = [
+        	name: "switch",
+            value: "on",
+        ]
+        events << createEvent(ev)
+        state.lastSuccessfulMessage = now()
     }
         if (tstat.containsKey("humidity")) {
         //Float temp = tstat.humidity.toFloat()
