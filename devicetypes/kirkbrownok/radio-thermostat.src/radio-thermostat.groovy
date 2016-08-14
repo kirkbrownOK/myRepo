@@ -546,8 +546,9 @@ def poll() {
 
 // refresh.refresh
 def refresh() {
+	//STATE()
     TRACE("refresh()")
-    //STATE()
+    
 
     setNetworkId(confIpAddr, confTcpPort)
     return apiGet("/tstat")
