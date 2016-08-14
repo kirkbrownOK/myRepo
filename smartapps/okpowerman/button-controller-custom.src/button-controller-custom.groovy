@@ -46,6 +46,7 @@ def configApp() {
 		input(name: "completionMode", type: "mode", title: "Change home Mode To", description: null, required: false)
 		//input(name: "completionPhrase", type: "enum", title: "Execute The Phrase", description: null, required: false, multiple: false)
 	} 
+    /*
     def phrases = location.helloHome?.getPhrases()*.label
 		if (phrases) {
         	phrases.sort()
@@ -55,53 +56,61 @@ def configApp() {
 				input "button5B", "enum", title: "Toggle 2 for Button 5", required: true, options: phrases,  refreshAfterSelection:true
 			}
         }
+        */
    }
 }
 
 def installed()
 {
-	subscribe(remote1, "switch.1", remoteHandler)
-    subscribe(remote1, "switch.2", remoteHandler)
-    subscribe(remote1, "switch.3", remoteHandler)
-    subscribe(remote1, "switch.4", remoteHandler)
-    subscribe(remote1, "switch.5", remoteHandler)
+	updated()
 }
 
 def updated()
 {
 	unsubscribe()
-    subscribe(remote1, "switch", remoteHandler)
+    //subscribe(remote1, "switch", remoteHandler)
 	subscribe(remote1, "switch.1", remoteHandler)
     subscribe(remote1, "switch.2", remoteHandler)
     subscribe(remote1, "switch.3", remoteHandler)
     subscribe(remote1, "switch.4", remoteHandler)
-    subscribe(remote1, "switch.5", remoteHandler)
+    state.lastCmdTime = now()
+    //subscribe(remote1, "switch.5", remoteHandler)
     
 }
 
 def remoteHandler(evt) {
 	
 	log.debug "The value is ${evt.description} ${evt.value}"
+    if((now() - state.lastCmdTime)/1000 < 5) {
+    	log.warn "RCVD commands in less than 5 seconds apart. Ignore cmd"
+        return
+    }
     if (evt.value == "0") {
     	log.debug "Do Nothing, not a remote event"
     } else if (evt.value == "1") {
-    	for (it in switches1) {
+    	state.lastCmdTime = now()
+    	for (it in switches1) {        	
 			if (it.currentSwitch == "off") {
             	state.toggledOn = 1
+                state.toggledOnAt = now()
+                log.debug "Turning on at ${state.toggledOnAt}"
             	switches1.on()
 				break
 			} else {
-       	    	log.debug "Not on" 
+       	    	log.debug "Already on" 
                 state.toggledOn = 0
             }
                         
 		}
         if (state.toggledOn == 0) {
+        	state.compareTime = now() - state.toggledOnAt
+        	log.debug "Toggling Back off. Toggled at ${state.toggledOnAt} and its been ${state.compareTime/1000} sedonds"
         	switches1.off()
         
         }
         
     } else if (evt.value == "2") {
+    	state.lastCmdTime = now()
     	for (it in switches2) {
 			if (it.currentSwitch == "off") {
             	state.toggledOn = 1
@@ -119,6 +128,7 @@ def remoteHandler(evt) {
         }
         
     } else if (evt.value == "3") {
+    	state.lastCmdTime = now()
     	for (it in switches3) {
 			if (it.currentSwitch == "off") {
             	switches3.setLevel(99)
@@ -137,6 +147,7 @@ def remoteHandler(evt) {
         }
         
     } else if (evt.value == "4") {
+    	state.lastCmdTime = now()
         if (location.mode ==completionMode) {
         	log.debug "Waking up from Nap"
             setLocationMode("Home")
