@@ -184,7 +184,7 @@ private defaultText(evt) {
 		}
 	}
 	else {
-		evt.descriptionText
+		//evt.descriptionText
 	}
 }
 

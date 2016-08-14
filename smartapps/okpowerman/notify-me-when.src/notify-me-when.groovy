@@ -42,9 +42,13 @@ preferences {
 		input "departurePresence", "capability.presenceSensor", title: "Departure Of", required: false, multiple: true
 		input "smoke", "capability.smokeDetector", title: "Smoke Detected", required: false, multiple: true
 		input "water", "capability.waterSensor", title: "Water Sensor Wet", required: false, multiple: true
+        input "flameSensor", "capability.switch",  title: "Flame sensor from arduino:", required: false, multiple: false
+        input "flameSensorDebug", "capability.switch",  title: "(DEBUG) Flame sensor from arduino:", required: false, multiple: false
+        input "esp8266error", "capability.switch", title: "PHANT data error messages", required: false, multiple: true
 	}
 	section("Send this message (optional, sends standard status message if not specified)"){
 		input "messageText", "text", title: "Message Text", required: false
+        input "messageFlame", "text", title: "Flame message", required: false
 	}
 	section("Via a push notification and/or an SMS message"){
         input("recipients", "contact", title: "Send notifications to") {
@@ -82,6 +86,9 @@ def subscribeToEvents() {
 	subscribe(smoke, "smoke.tested", eventHandler)
 	subscribe(smoke, "carbonMonoxide.detected", eventHandler)
 	subscribe(water, "water.wet", eventHandler)
+    subscribe(flameSensor, "flameSensorState.off", eventHandlerFlame)
+    subscribe(flameSensorDebug, "flameSensorState", eventHandlerFlame)
+    subscribe(esp8266error, "switch.error", esp8266errorHandler)
 }
 
 def eventHandler(evt) {
@@ -100,6 +107,7 @@ def eventHandler(evt) {
 private sendMessage(evt) {
 	def msg = messageText ?: defaultText(evt)
 	log.debug "$evt.name:$evt.value, pushAndPhone:$pushAndPhone, '$msg'"
+    
 
     if (location.contactBookEnabled) {
         sendNotificationToContacts(msg, recipients)
@@ -148,4 +156,77 @@ private getIncludeArticle() {
 	def name = location.name.toLowerCase()
 	def segs = name.split(" ")
 	!(["work","home"].contains(name) || (segs.size() > 1 && (["the","my","a","an"].contains(segs[0]) || segs[0].endsWith("'s"))))
+}
+def eventHandlerFlame(evt) {
+	log.debug "Notify got flame evt ${evt}"
+	if (frequency) {
+		def lastTime = state[evt.deviceId]
+		if (lastTime == null || now() - lastTime >= frequency * 60000) {
+			sendMessageFlame(evt)
+		}
+	}
+	else {
+		sendMessageFlame(evt)
+	}
+}
+def esp8266errorHandler(evt) {
+	log.debug "Notify got ESP8266 evt ${evt}"
+	if (frequency) {
+		def lastTime = state[evt.deviceId]
+		if (lastTime == null || now() - lastTime >= frequency * 60000) {
+			sendMessageESP8266(evt)
+		}
+	}
+	else {
+		sendMessageESP8266(evt)
+	}
+
+}
+
+private sendMessageFlame(evt) {
+	def msg = messageFlame+". Pilot is: $evt.value. Sensor reads: ${flameSensor.currentValue("flameSensor")}" ?: defaultText(evt)
+	//log.debug "$evt.name:$evt.value, pushAndPhone:$pushAndPhone, '$msg'"
+    
+
+    if (location.contactBookEnabled) {
+        sendNotificationToContacts(msg, recipients)
+    }
+    else {
+
+        if (!phone || pushAndPhone != "No") {
+            log.debug "sending push"
+            sendPush(msg)
+        }
+        if (phone) {
+            log.debug "sending SMS"
+            sendSms(phone, msg)
+        }
+    }
+	if (frequency) {
+		state[evt.deviceId] = now()
+	}
+}
+
+private sendMessageESP8266(evt) {
+	def msg = "ESP8266 id: ${evt.displayName} state is: $evt.value."
+	//log.debug "$evt.name:$evt.value, pushAndPhone:$pushAndPhone, '$msg'"
+    
+
+    if (location.contactBookEnabled) {
+        sendNotificationToContacts(msg, recipients)
+    }
+    else {
+
+        if (!phone || pushAndPhone != "No") {
+            log.debug "sending push"
+            sendPush(msg)
+        }
+        if (phone) {
+            log.debug "sending SMS"
+            sendSms(phone, msg)
+        }
+    }
+	if (frequency) {
+		state[evt.deviceId] = now()
+	}
 }

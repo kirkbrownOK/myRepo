@@ -180,7 +180,7 @@ private enabled() {
         TRACE("now is ${t} rising Time: ${state.riseTime} setTime: ${state.setTime}")
 		result = t < state.riseTime || t > state.setTime
 	}
-	result
+	return result
 }
 
 private getSunriseOffset() {
