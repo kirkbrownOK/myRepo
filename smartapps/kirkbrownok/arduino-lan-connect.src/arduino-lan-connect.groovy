@@ -36,7 +36,7 @@ def selectArduinoPage() {
         log.debug('Subscribing to updates')
         // subscribe to M-SEARCH answers from hub
         subscribe(location, null, locationHandler, [filterEvents:false])
-        subscribe(location, "ssdpTerm.urn:schemas-upnp-org:device:Arduino_LAN:1", locationHandler)
+        //subscribe(location, "ssdpTerm.urn:schemas-upnp-org:device:Arduino_LAN:1", locationHandler)
         state.subscribe = true
     }
 
@@ -95,13 +95,13 @@ def locationHandler(evt) {
         return ""
     }
 
-    log.debug('Ard Garage App Received Response: ' + evt.description)
+    //log.debug('Ard Garage App Received Response: ' + evt.description)
 
     def description = evt.description
     def hub = evt?.hubId
     def parsedEvent = parseDiscoveryMessage(description)
     parsedEvent << ["hub":hub]
-	//log.debug "parsedEvent ${parsedEvent}"
+	log.debug "parsedEvent ${parsedEvent}"
     if (parsedEvent?.ssdpTerm?.contains("schemas-upnp-org:device:Arduino_LAN:")) {
         def devices = getDevices()
 
@@ -146,6 +146,7 @@ def updated() {
     log.debug "Updated with settings: ${settings}"
 
     unsubscribe()
+    state.subscribe = false
     initialize()
 }
 
@@ -201,7 +202,7 @@ def subscribeToDevices() {
 }
 
 private def parseDiscoveryMessage(String description) {
-	log.trace "PDM: ${parseLanMessage(description)}"
+	//log.trace "PDM: ${parseLanMessage(description)}"
     def myParts = description.split(',')
     myParts.each { myPart ->
     	//log.trace "${myPart.decodeBase64()}"

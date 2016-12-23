@@ -27,20 +27,18 @@ preferences() {
 	section("Optionally choose temperature sensor to use instead of the thermostat's... ") {
 		input "sensor", "capability.temperatureMeasurement", title: "Temp Sensors", required: false, multiple: true
         }
-    section("Delay before allowing the AC to come back on") {    
-        input "sensorDelay", "number", title: "Delay between idle to update", required: false
-	}
+    section("How long to delay between turning HVAC on?") {
+		input "sensorDelay", "number", title: "Sensor Delay", required: false
+        }
 }
 
 def installed()
 {
 	log.debug "enter installed, state: $state"
-	subscribeToEvents()
+    initialize()
+	
 }
-
-def updated()
-{
-	log.debug "enter updated, state: $state"
+def initialize() {
     if ( sensorDelay > 5) {
        log.debug "sensor delay acceptable ${sensorDelay}"
        state.sensorDelay = sensorDelay
@@ -48,12 +46,18 @@ def updated()
     	state.sensorDelay = 10
         log.debug "Sensor Delay fixed"
     }
-	unsubscribe()
-//    thermostat.setHeatingOverride(heatingSetpoint)
-//    thermostat.setCoolingOverride(coolingSetpoint)
+	
     state.heatingSetpoint = heatingSetpoint
     state.coolingSetpoint = coolingSetpoint
 	subscribeToEvents()
+}
+
+def updated()
+{
+	log.debug "enter updated, state: $state"
+	unsubscribe()
+    initialize()
+    evaluate()
 }
 
 def subscribeToEvents()
@@ -64,11 +68,9 @@ def subscribeToEvents()
         	log.trace("${it.name}")
 			subscribe(it, "temperature", temperatureHandler)
         }    
-		subscribe(thermostat, "temperature", temperatureHandler)
+		subscribe(thermostat, "temperature", temperatureHandlerThermostat)
 		subscribe(thermostat, "thermostatMode", temperatureHandler)
         subscribe(thermostat, "thermostatOperatingstate", temperatureHandler)
-        //subscribe(thermostat, "heatingOverride", heatingOverrideHandler)
-        //subscribe(thermostat, "coolingOverride", coolingOverrideHandler)
         
 	}
 	//evaluate()
@@ -77,16 +79,16 @@ def subscribeToEvents()
 def changedLocationMode(evt)
 {
 	log.debug "changedLocationMode mode: $evt.value, heat: $heat, cool: $cool"
-//    thermostat.setCoolingOverride(coolingSetpoint)
-//    thermostat.setHeatingOverride(heatingSetpoint)
     
     state.heatingSetpoint = heatingSetpoint
     state.coolingSetpoint = coolingSetpoint    
 	evaluate()
 }
-
+public myDateFormat() { "yyyy-MM-dd'T'HH:mm:ss" }
 def temperatureHandler(evt)
-{
+{	
+	//updated()
+	def timeReceived = evt.date.format(myDateFormat())
     if(state.lastIdle > 0 ) {
     	//DO nothing
     } else {
@@ -95,18 +97,27 @@ def temperatureHandler(evt)
 	log.debug "${evt.name} ${evt.value} ${evt.date}"
 	if ((evt.name == "thermostatOperatingState") && (evt.value == "idle")) {
     	state.lastIdle = now() 
-        log.debug "thermostatOperatingState changed to IDLE"
+        
+        timeReceived = evt.date.format(myDateFormat())
+        log.debug "thermostatOperatingState changed to IDLE at ${timeReceived}"
     }
     log.debug "LastIdle: ${state.lastIdle}"
     if((now() - state.lastIdle)/1000 > (60*state.sensorDelay) ) {
     	log.debug "Its been ${state.sensorDelay} minutes"
         evaluate()
     } else { 
-    	log.debug "Its only been ${(now() - state.lastIdle)/1000/60}"
+    	log.debug "Its only been ${(now() - state.lastIdle)/1000/60} minutes"
+        //state.sensorDelay = 5
     }
 	
 }
 
+def temperatureHandlerThermostat(evt)
+{	
+	log.debug "Thermostat temp update"
+	evaluate()
+   	
+}
 private evaluate()
 {
 	if (sensor) {
@@ -116,6 +127,7 @@ private evaluate()
         def currentTemp = 0
         def sensorCounter = 0
         sensorCounter = 0
+        currentTemp = 0
         
         sensor.each{
         	log.trace("${it.name} : ${it.currentTemperature} sensor state: ${it.currentSwitch}")
@@ -137,11 +149,15 @@ private evaluate()
 			"sensor: $currentTemp, heat: $state.heatingSetpoint, cool: $state.coolingSetpoint")
 		if (tm in ["cool","auto"]) {
 			// air conditioner
+            //TRUE -> 72    -  69  >= 1.0 Evaluates true -> Send 65 - 3 = 62 Deg
+            //False -> 69 - 69 >= 1.0 Evaluates False
 			if (currentTemp - state.coolingSetpoint >= threshold) {
 				thermostat.setCoolingSetpoint(ct - 3)
 				log.debug "thermostat.setCoolingSetpoint(${ct - 3}), ON"
 			}
-			else if (state.coolingSetpoint - currentTemp >= threshold && ct - thermostat.currentCoolingSetpoint >= threshold) {
+            //true -> 
+			//else if (state.coolingSetpoint - currentTemp >= threshold && ct - thermostat.currentCoolingSetpoint >= threshold) {
+			else if (state.coolingSetpoint - currentTemp >= threshold ) {
 				thermostat.setCoolingSetpoint(ct + 3)
 				log.debug "thermostat.setCoolingSetpoint(${ct + 3}), OFF"
 			}
@@ -149,38 +165,22 @@ private evaluate()
 		if (tm in ["heat","emergency heat","auto"]) {
 			// heater
 			if (state.heatingSetpoint - currentTemp >= threshold) {
-				thermostat.setHeatingSetpoint(ct + 3)
+            	    if((now() - state.lastIdle)/1000 > (60*state.sensorDelay) ) {
+                        thermostat.setHeatingSetpoint(ct + 3)
+                    }
+				
 				log.debug "thermostat.setHeatingSetpoint(${ct + 3}), ON"
 			}
-			else if (currentTemp - state.heatingSetpoint >= threshold && thermostat.currentHeatingSetpoint - ct >= threshold) {
-				thermostat.setHeatingSetpoint(ct - 3)
+			//else if (currentTemp - state.heatingSetpoint >= threshold && thermostat.currentHeatingSetpoint - ct >= threshold) {
+			else if (currentTemp - state.heatingSetpoint >= threshold) {
+            	thermostat.setHeatingSetpoint(ct - 3)
 				log.debug "thermostat.setHeatingSetpoint(${ct - 3}), OFF"
 			}
 		}
 	}
 	else {
-		thermostat.setHeatingSetpoint(state.heatingSetpoint)
-		thermostat.setCoolingSetpoint(state.coolingSetpoint)
+		thermostat.setHeatingSetpoint(61)
+		thermostat.setCoolingSetpoint(69)
 		thermostat.poll()
 	}
-}
-
-// for backward compatibility with existing subscriptions
-def coolingSetpointHandler(evt) {
-	log.debug "coolingSetpointHandler()"
-}
-def heatingSetpointHandler (evt) {
-	log.debug "heatingSetpointHandler ()"
-}
-def coolingOverrideHandler(evt) {
-	log.debug "Cooling override from: ${state.coolingSetpoint} to ${evt.value}"
-    state.coolingSetpoint = evt.value
-    evaluate()
-
-}
-
-def heatingOverrideHandler(evt) {
-	log.debug "Heating override from: ${state.heatingSetpoint} to ${evt.value}"
-    state.heatingSetpoint = evt.value.toFloat()
-    evaluate()  
 }

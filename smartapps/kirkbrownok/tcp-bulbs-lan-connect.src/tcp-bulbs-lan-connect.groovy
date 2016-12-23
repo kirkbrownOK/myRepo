@@ -17,13 +17,15 @@
 
 import java.security.MessageDigest;
 
-private apiUrl() { "https://${ipAddress}/gwr/gop.php?" }
+private apiUrl() { "https://api.thingspeak.com" }
+//private apiUrl() { "https://tnrtkrucm4ig.runscope.net" }
+
 
 definition(
 	name: "Tcp Bulbs LAN (Connect)",
 	namespace: "kirkbrownOK",
 	author: "SmartThings",
-	description: "Connect your TCP bulbs to SmartThings using LAN (Works without broken TCP cloud)",
+	description: "Connect your TCP bulbs to SmartThings without CLOUD (Works without broken TCP cloud)",
 	category: "SmartThings Labs",
 	iconUrl: "https://s3.amazonaws.com/smartapp-icons/Partner/tcp.png",
 	iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Partner/tcp@2x.png",
@@ -38,8 +40,9 @@ Once your credentials are accepted, SmartThings will scan your TCP installation 
 
 	page(name: "selectDevices", title: "Connect Your TCP Lights to SmartThings", install: false, uninstall: true, nextPage: "chooseBulbs") {
 		section("TCP Connected Remote Credentials") {
-			input "ipAddress", "text", title: "Enter TCP Remote Email/UserName", required: true
-			input "token", "password", title: "TCP token", required: true
+			input "ipAddress", "string", title: "Enter TCP Remote Email/UserName",defaultValue: "myarduino.hopto.org", required: true
+			input "port", "number", title: "Port #", defaultValue: 444
+            input "myToken", "string", title: "TCP token", required: true, defaultValue: "ewdhl9rwg64434ky772k6flkagsf4xu8jdfabcwy"
 			paragraph msg
 		}
 	}
@@ -52,7 +55,7 @@ def installed() {
 
 	unschedule()
 	unsubscribe()
-	state.token = token
+	state.token = myToken
 	setupBulbs()
 
 	def cron = "0 11 23 * * ?"
@@ -64,7 +67,7 @@ def updated() {
 	debugOut "Updated with settings: ${settings}"
 
 	unschedule()
-	state.token = token
+	state.token = myToken
 	setupBulbs()
 
 	def cron = "0 11 23 * * ?"
@@ -110,7 +113,7 @@ def uninstallFromChildDevice(childDevice)
 
 def setupBulbs() {
 	debugOut "In setupBulbs"
-	state.token = token
+	
 	def bulbs = state.devices
 	def deviceFile = "TCP Bulb"
 
@@ -173,20 +176,22 @@ def initialize() {
 }
 
 def deviceDiscovery() {
-	def data = "<gip><version>1</version><token>${atomicState.token}</token></gip>"
+	def data = "<gip><version>1</version><token>${atomicState.token}</token><fields>name,power,product,class,control</fields></gip>"
 
 	def Params = [
 		cmd: "RoomGetCarousel",
 		data: "${data}",
-		fmt: "json"
+        fmt: "xml"
 	]
-
+	state.cmd = "RoomGetCarousel"
+    state.data = "${data}"
+    state.fmt = "xml"
 	def cmd = toQueryString(Params)
 
 	def rooms = ""
 
 	apiPost(cmd) { response ->
-		rooms = response.data.gip.room
+		rooms = response.data.room
 	}
 
 	debugOut "rooms data = ${rooms}"
@@ -260,22 +265,24 @@ def getGatewayData() {
 	def qParams = [
 		cmd: "GatewayGetInfo",
 		data: "${data}",
-		fmt: "json"
+        fmt: "xml"
 	]
-
+	state.cmd = "GatewayGetInfo"
+    state.data = "${data}"
+    state.fmt = "xml"
 	def cmd = toQueryString(qParams)
 
 	apiPost(cmd) { response ->
-		debugOut "the gateway reponse is ${response.data.gip.gateway}"
+		debugOut "the gateway reponse is ${response.data.gateway}"
 	}
 
 }
 
 def getToken() {
-
-	atomicState.token = ""
-
-	if (password) {
+	
+	atomicState.token = "${myToken}"
+	//debugOut "AST: ${atomicState.token} mytoken: ${myToken}"
+	/*if (password) {
 		def hashedPassword = generateMD5(password)
 
 		def data = "<gip><version>1</version><email>${username}</email><password>${hashedPassword}</password></gip>"
@@ -304,20 +311,40 @@ def getToken() {
 	} else {
 		log.warn "Unable to log into TCP Gateway. Error = Password is null"
 		atomicState.token = "error"
-	}
+	}*/
 }
 
 def apiPost(String data, Closure callback) {
 	//debugOut "In apiPost with data: ${data}"
+    //debugOut "state data: cmd=${state.cmd}&data=${state.data}&fmt=${state.fmt}"
 	def params = [
 		uri: apiUrl(),
-		body: data
+        path: "/apps/thinghttp/send_request",
+        query: [api_key:"7O5X7LMXTC2J7VLO",cmd:"${state.cmd}",data:"${state.data}",fmt:"${state.fmt}"],
+        //headers: [ "Content-Type": "text/xml"],
+        //requestContentType: "text/xml",
+        contentType: "text/xml"
+		//body: data,
+        //fmt: "json"
 	]
+    debugOut "params ${params}"
 
 	httpPost(params) {
+    	
 		response ->
-			def rc = response.data.gip.rc
+        atomicState.myXml = "${response.data}"
+        atomicState.mydatarc = "${response.data.rc}"
+        log.debug " data: ${response.data}"
+        response.data.each{
+        	log.debug it
+        }
 
+        	response.data.children().each { 
+        	log.debug it 
+        }
+            
+			def rc = response.data.rc
+			
 			if ( rc == "200" ) {
 				debugOut ("Return Code = ${rc} = Command Succeeded.")
 				callback.call(response)
@@ -384,15 +411,17 @@ def checkDevicesOnline(bulbs) {
 		def qParams = [
 			cmd: "DeviceGetInfo",
 			data: "${data}",
-			fmt: "json"
+        	fmt: "xml"
 		]
-
+		state.cmd = "DeviceGetInfo"
+    	state.data = "${data}"
+    	state.fmt = "xml"
 		def cmd = toQueryString(qParams)
 
 		def bulbData = []
 
 		apiPost(cmd) { response ->
-			bulbData = response.data.gip
+			bulbData = response.data
 		}
 
 		if ( bulbData?.offline == "1" ) {
@@ -444,7 +473,7 @@ def debugEvent(message, displayEvent) {
 }
 
 def debugOut(msg) {
-	//log.debug msg
+	log.debug msg
 	//sendNotificationEvent(msg) //Uncomment this for troubleshooting only
 }
 
@@ -466,13 +495,14 @@ def on(childDevice) {
 		data = "<gip><version>1</version><token>$atomicState.token</token><did>${dni}</did><type>power</type><value>1</value></gip>"
 		cmd = "DeviceSendCommand"
 	}
-
+	state.cmd = "${cmd}"
+    state.data = "${data}"
+    state.fmt = "xml"
 	def qParams = [
 		cmd: cmd,
 		data: "${data}",
-		fmt: "json"
+        fmt: "xml"
 	]
-
 	cmd = toQueryString(qParams)
 
 	apiPost(cmd) { response ->
@@ -497,11 +527,13 @@ def off(childDevice) {
 		data = "<gip><version>1</version><token>$atomicState.token</token><did>${dni}</did><type>power</type><value>0</value></gip>"
 		cmd = "DeviceSendCommand"
 	}
-
+	state.cmd = "${cmd}"
+    state.data = "${data}"
+    state.fmt = "xml"
 	def qParams = [
 		cmd: cmd,
 		data: "${data}",
-		fmt: "json"
+        fmt: "xml"
 	]
 
 	cmd = toQueryString(qParams)
@@ -528,11 +560,13 @@ def setLevel(childDevice, value) {
 		data = "<gip><version>1</version><token>${atomicState.token}</token><did>${dni}</did><type>level</type><value>${value}</value></gip>"
 		cmd = "DeviceSendCommand"
 	}
-
+	state.cmd = "${cmd}"
+    state.data = "${data}"
+    state.fmt = "xml"
 	def qParams = [
 		cmd: cmd,
 		data: "${data}",
-		fmt: "json"
+        fmt: "xml"
 	]
 
 	cmd = toQueryString(qParams)
@@ -558,13 +592,15 @@ def pollRoom(dni) {
 	def qParams = [
 		cmd: cmd,
 		data: "${data}",
-		fmt: "json"
+        fmt: "xml"
 	]
-
+	state.cmd = "${cmd}"
+    state.data = "${data}"
+    state.fmt = "xml"
 	cmd = toQueryString(qParams)
 
 	apiPost(cmd) { response ->
-		roomDeviceData = response.data.gip
+		roomDeviceData = response.data
 	}
 
 	debugOut "Room Data: ${roomDeviceData}"
@@ -624,13 +660,15 @@ def poll(childDevice) {
 	def qParams = [
 		cmd: cmd,
 		data: "${data}",
-		fmt: "json"
+        fmt: "xml"
 	]
-
+	state.cmd = "${cmd}"
+    state.data = "${data}"
+    state.fmt = "xml"
 	cmd = toQueryString(qParams)
 
 	apiPost(cmd) { response ->
-		bulbData = response.data.gip
+		bulbData = response.data
 	}
 
 	debugOut "This Bulbs Data Return = ${bulbData}"
