@@ -27,9 +27,15 @@ preferences() {
 	section("Optionally choose temperature sensor to use instead of the thermostat's... ") {
 		input "sensor", "capability.temperatureMeasurement", title: "Temp Sensors", required: false, multiple: true
         }
+    section("Optionally choose Virtual Thermost to use with Amazon Echo for voice controls") {
+    	input "virtualThermostat", "capability.thermostat", title: "Virtual Thermostat", required: false
+    }
     section("How long to delay between turning HVAC on?") {
 		input "sensorDelay", "number", title: "Sensor Delay", required: false
         }
+   section("What do you want the threshold to be?") {
+		input "sensorThreshold", "decimal", title: "Sensor Threshold", required: true, default: 1.0
+        }     
 }
 
 def installed()
@@ -47,8 +53,9 @@ def initialize() {
         log.debug "Sensor Delay fixed"
     }
 	
-    state.heatingSetpoint = heatingSetpoint
-    state.coolingSetpoint = coolingSetpoint
+    state.heatingSetpoint = state.heatingSetpoint ? state.heatingSetpoint: heatingSetpoint
+    state.coolingSetpoint = state.coolingSetpoint ? state.coolingSetpoint: coolingSetpoint
+    state.threshold = sensorThreshold
 	subscribeToEvents()
 }
 
@@ -71,6 +78,13 @@ def subscribeToEvents()
 		subscribe(thermostat, "temperature", temperatureHandlerThermostat)
 		subscribe(thermostat, "thermostatMode", temperatureHandler)
         subscribe(thermostat, "thermostatOperatingstate", temperatureHandler)
+        if(virtualThermostat) {
+        	virtualThermostat.setHeatingSetpoint(state.heatingSetpoint)
+            virtualThermostat.setCoolingSetpoint(state.coolingSetpoint)
+        	log.debug "Virtual Thermostat for voice control and Temp setting storage"
+            subscribe(virtualThermostat, "heatingSetpoint", virtualHeatingSetpoint)
+            subscribe(virtualThermostat, "coolingSetpoint", virtualCoolingSetpoint)
+        }
         
 	}
 	//evaluate()
@@ -104,6 +118,9 @@ def temperatureHandler(evt)
     log.debug "LastIdle: ${state.lastIdle}"
     if((now() - state.lastIdle)/1000 > (60*state.sensorDelay) ) {
     	log.debug "Its been ${state.sensorDelay} minutes"
+        if(virtualThermostat) {
+        	getSetpoints()
+        }
         evaluate()
     } else { 
     	log.debug "Its only been ${(now() - state.lastIdle)/1000/60} minutes"
@@ -118,10 +135,11 @@ def temperatureHandlerThermostat(evt)
 	evaluate()
    	
 }
-private evaluate()
+def evaluate()
 {
 	if (sensor) {
-		def threshold = 1.0
+		def threshold = state.threshold
+        log.debug "Threshold is: ${threshold}"
 		def tm = thermostat.currentThermostatMode
 		def ct = thermostat.currentTemperature
         def currentTemp = 0
@@ -183,4 +201,34 @@ private evaluate()
 		thermostat.setCoolingSetpoint(69)
 		thermostat.poll()
 	}
+    if(virtualThermostat) {
+    	updateVirtualThermostat()
+    }
+}
+
+def virtualHeatingSetpoint(evt) {
+	log.debug "${virtualThermostat.name} changed heating to: ${evt.value} from ${state.heatingSetpoint}"
+    state.heatingSetpoint = evt.value.toFloat()
+    runIn(10, evaluate)
+    //evaluate()
+}
+def virtualCoolingSetpoint(evt) {
+	log.debug "${virtualThermostat.name} changed cooling to: ${evt.value} from ${state.coolingSetpoint}"
+    state.coolingSetpoint = evt.value.toFloat()
+    runIn(10, evaluate)
+    //evaluate()
+}
+def getSetpoints() {
+	log.debug "Manual updates of setpoints"
+    //log.debug "Heating from ${state.heatingSetpoint} to ${virtualThermostat.currentHeatingSetpoint.toFloat()}"
+    state.heatingSetpoint = virtualThermostat.currentHeatingSetpoint.toFloat()
+    //log.debug "Cooling from ${state.coolingSetpoint} to ${virtualThermostat.currentCoolingSetpoint.toFloat()}"
+    state.coolingSetpoint = virtualThermostat.currentCoolingSetpoint.toFloat()
+}
+def updateVirtualThermostat() {
+	log.debug "Updating Thermostat: FAN: $thermostat.currentThermostatFanMode TherMode: $thermostat.currentThermostatMode OpState: $thermostat.currentThermostatOperatingState H: ${sensor[0].currentHumidity}"
+	virtualThermostat.setThermostatFanMode(thermostat.currentThermostatFanMode)
+    virtualThermostat.setThermostatMode(thermostat.currentThermostatMode)
+    virtualThermostat.setThermostatOperatingState(thermostat.currentThermostatOperatingState)
+    virtualThermostat.setHumidity(sensor[0].currentHumidity)
 }
