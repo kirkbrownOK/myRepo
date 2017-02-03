@@ -29,6 +29,7 @@ metadata {
         capability "Button"
         
         attribute "switchC", "string"
+        attribute "switchW", "string"
         attribute "switchA", "string"
         attribute "switchOrvibo1", "string"
         attribute "switchFan", "string"
@@ -51,6 +52,8 @@ metadata {
         command "offC"
         command "onA"
         command "offA"
+        command "onW"
+        command "offW"
         command "orviboOn1"
         command "orviboOff1"
         command "refreshOrvibo1"
@@ -141,6 +144,16 @@ metadata {
         standardTile("switchCoff", "device.switchC", width: 1, height: 1, canChangeIcon: true, canChangeBackground: true) {
 			state "default", label: 'Garage OFF', action: "offC", icon: "st.Appliances.appliances17", backgroundColor: "#ffffff"
 		}
+        standardTile("switchW", "device.switchW", width: 1, height: 1, canChangeIcon: true, canChangeBackground: true) {
+			state "off", label: 'W: ${name}', action: "onW", icon: "st.Appliances.appliances17", backgroundColor: "#ffffff"
+			state "on", label: 'W: ${name}', action: "offW", icon: "st.Appliances.appliances17", backgroundColor: "#79b821"
+		}
+        standardTile("switchWon", "device.switchW", width: 1, height: 1, canChangeIcon: true, canChangeBackground: true) {
+			state "default", label: 'W ON', action: "onW", icon: "st.Appliances.appliances17", backgroundColor: "#79b821"
+		}
+        standardTile("switchWoff", "device.switchW", width: 1, height: 1, canChangeIcon: true, canChangeBackground: true) {
+			state "default", label: 'W OFF', action: "offW", icon: "st.Appliances.appliances17", backgroundColor: "#ffffff"
+		}
         standardTile("switchA", "device.switchA", width: 1, height: 1, canChangeIcon: true, canChangeBackground: true) {
 			state "off", label: 'Fan: ${name}', action: "onA", icon: "st.Appliances.appliances17", backgroundColor: "#ffffff"
 			state "on", label: 'Fan: ${name}', action: "offA", icon: "st.Appliances.appliances17", backgroundColor: "#79b821"
@@ -186,36 +199,12 @@ metadata {
 			state("active", label:'motion', icon:"st.motion.motion.active", backgroundColor:"#53a7c0")
 			state("inactive", label:'no motion', icon:"st.motion.motion.inactive", backgroundColor:"#ffffff")
         }
-        
-        standardTile("walkBy", "device.walkBy", width: 1, height: 1) {
-			state("off", label:'Walk: ${name}', icon:"st.contact.contact.closed", backgroundColor:"#79b821", action: "refresh")
-			state("on", label:'Walk: ${name}', icon:"st.contact.contact.open", backgroundColor:"#ffa81e", action: "refresh")
-		}
-        valueTile("kirksCar", "device.kirksCar") {
-			state "default", label:'${currentValue} in', action:"refresh",
-            backgroundColors:[
-                    [value: 5, color: "#ff0000"], //Used for tornado distance
-                    [value: 36, color: "#3fff00"], //Green, good to go
-                    [value: 72, color: "#ffff00"], // In garage, could be better
-                    [value: 120, color: "#1900fc"], //10' from wall... do better
-                    [value: 175, color: "#000000"]
-                ]
-		}       
-        valueTile("riatasCar", "device.riatasCar") {
-			state "default", label:'${currentValue} in', action:"refresh",
-            backgroundColors:[
-                    [value: 24, color: "#ff0000"], //TOO CLOSE!
-                    [value: 45, color: "#ff02bf"], //Pink, good to go
-                    [value: 72, color: "#ffff00"], // In garage, could be better
-                    [value: 120, color: "#1900fc"], //10' from wall... do better
-                    [value: 175, color: "#000000"]
-                ]
-		}
         main "switchFan"
         details (["switch", "temperature","switchFan","switchC","switchCon","switchCoff", 
-        	"switchA","switchAon","switchAoff","switchWemo1","switchWemoOn1","switchWemoOff1",
+        	"switchA","switchAon","switchAoff","switchW","switchWon","switchWoff",
+            "switchWemo1","switchWemoOn1","switchWemoOff1",
             "switchOrvibo1","switchOrviboOn1","switchOrviboOff1","motion","contact","contact1","contact2","contact3",
-            "contact4","contact5","contact6","contact7","contact8","kirksCar","riatasCar","walkBy", "levelSliderControl","refresh"])
+            "contact4","contact5","contact6","contact7","contact8","refresh"])
     }
 }
 
@@ -223,7 +212,7 @@ metadata {
 def parse(String description) {
 	
     def usn = getDataValue('ssdpUSN')
-    TRACE( "Parsing Arduino DT ${device.deviceNetworkId} ${usn} '${description}'")
+    TRACE( "Parsing Arduino DT ${device.name} ${device.deviceNetworkId} ")
 
     def parsedEvent = parseDiscoveryMessage(description)
 	def events = []
@@ -239,28 +228,32 @@ def parse(String description) {
             def livingRoomFan = xmlTop.lrf[0] //
             def chc = xmlTop.chc[0] //
             def cha = xmlTop.cha[0] //
+            def chw = xmlTop.chw[0]
             def we1 = xmlTop.we1[0] //
-            def orvibo1 = xmlTop.or1[0]
-            def motion1 = xmlTop.mn1[0] 
-            def contact1 = xmlTop.ct1[0]
-            def contact2 = xmlTop.ct2[0]
-            def contact3 = xmlTop.ct3[0]
-            def contact4 = xmlTop.ct4[0]
-            def contact5 = xmlTop.ct5[0]
-            def contact6 = xmlTop.ct6[0]
-            def contact7 = xmlTop.ct7[0]
-            def contact8 = xmlTop.ct8[0]
-            def remoteCode = xmlTop.remoteCode[0]
-            def livingRoomLight = xmlTop.lrl[0]
+            def or1 = xmlTop.or1[0]
+            def mn1 = xmlTop.mn1[0] 
+            def ct1 = xmlTop.ct1[0]
+            def ct2 = xmlTop.ct2[0]
+            def ct3 = xmlTop.ct3[0]
+            def ct4 = xmlTop.ct4[0]
+            def ct5 = xmlTop.ct5[0]
+            def ct6 = xmlTop.ct6[0]
+            def ct7 = xmlTop.ct7[0]
+            def ct8 = xmlTop.ct8[0]
+            def rc = xmlTop.remoteCode[0]
+            def lrl = xmlTop.lrl[0]
 
             def targetUsn = xmlTop.usn[0].toString()
 
-            TRACE( "Processing command ${cmd} val: ${val} for ${targetUsn}")
+            TRACE( "Processing xmlText ${xmlText} for ${targetUsn}")
 
             parent.getChildDevices().each { child ->
-                def childUsn = child.getDataValue("ssdpUSN").toString()
+                def childUsn = getDataValue("ssdpUSN").toString()
+                //TRACE("A:${childUsn}")
+                //TRACE("B:${targetUsn}")
                 if (childUsn == targetUsn) {
-                    TRACE( "childUSN ${childUsn} equal to Target USN ${targetUsn}")
+                    //TRACE( "childUSN ${childUsn} equal to Target USN ${targetUsn}")
+                    TRACE( "Found child")
                     try {
 
                         if (cmd == 'poll') {
@@ -281,34 +274,34 @@ def parse(String description) {
                     try{
                         if(val.toFloat() > 0 ) {
                             TRACE( "Updating ${child.device.label} to ${val}")
-                            if (child.currentTemperature != val) {
-                            	child.sendEvent(name: 'temperature', value: val)
+                            if (currentTemperature != val) {
+                            	sendEvent(name: 'temperature', value: val)
                             }
                         }
                     } catch(e) {
                         TRACE( "No values msg")
                     }
                     try {
-                        if (remoteCode.toFloat() >= 0) {
-                            TRACE( "received Switch Signal: ${remoteCode.toFloat()}")
-                            if( child.currentValue("Switch") != remoteCode) child.sendEvent(name: 'switch', value: remoteCode)
+                        if (rc.toFloat() >= 0) {
+                            TRACE( "received Switch Signal: ${rc.toFloat()}")
+                            if( currentSwitch != rc) sendEvent(name: 'switch', value: rc)
                         }
                     } catch (e) {
                         TRACE( "No Switch msg")
                     }
                     try {        
         
-                        if (contact1.toFloat() == 0) {
-                            TRACE( "received Contact1 Signal: ${contact1.toFloat()}")
-                            if (child.currentValue("contact1") != 'closed' ) {
+                        if (ct1.toFloat() == 0) {
+                            TRACE( "received Contact1 Signal: ${ct1.toFloat()}")
+                            if (currentContact1 != 'closed' ) {
                             	ev = [name:   "contact1",value:  'closed' ]
                                 events << createEvent(ev)
                                 ev = [name: 'contact', value: 'Sensor1:close'] 
                             	events << createEvent(ev)
                             }
-                        } else if (contact1.toFloat() ==1) {
-                        	TRACE( "received Contact Signal: ${contact1.toFloat()}")
-                            if(child.currentValue("contact1") != 'open') { 
+                        } else if (ct1.toFloat() ==1) {
+                        	TRACE( "received Contact Signal: ${ct1.toFloat()}")
+                            if(currentContact1 != 'open') { 
                             	//child.sendEvent([name: 'contact1', value: 'open', name: 'contact', value: 'Sensor1:open'])
                         		ev = [name:   "contact1", value:  'open' ]
                                 events << createEvent(ev)
@@ -321,9 +314,9 @@ def parse(String description) {
                         TRACE( "No contact1 msg")
                     }
                     try {
-                        if (contact2.toFloat() == 0) {
-                            TRACE( "received Contact2 Signal: ${contact2.toFloat()}")
-                            if(child.currentValue("contact2") != 'closed') {
+                        if (ct2.toFloat() == 0) {
+                            TRACE( "received Contact2 Signal: ${ct2.toFloat()}")
+                            if(currenContact2 != 'closed') {
                             	ev = [
                                     name:   "contact2",
                                     value:  'closed',                                    
@@ -333,9 +326,9 @@ def parse(String description) {
                             	events << createEvent(ev)        
                             }//child.sendEvent([name: 'contact2', value: 'closed', name:'contact',value:'Sensor2:close'])
                             
-                        } else if (contact2.toFloat() ==1) {
-                        	TRACE( "received Contact2 Signal: ${contact2.toFloat()}")
-                            if( child.currentValue("contact2") != 'open') {
+                        } else if (ct2.toFloat() ==1) {
+                        	TRACE( "received Contact2 Signal: ${ct2.toFloat()}")
+                            if( currentContact2 != 'open') {
                             	ev = [
                                     name:   "contact2",
                                     value:  'open',                                    
@@ -349,9 +342,9 @@ def parse(String description) {
                         TRACE( "No contact2 msg")
                     }
                     try {
-                        if (contact3.toFloat() == 0) {
-                            TRACE( "received Contact3 Signal: ${contact3.toFloat()}")
-                            if (child.currentValue("contact3") != 'closed') {
+                        if (ct3.toFloat() == 0) {
+                            TRACE( "received Contact3 Signal: ${ct3.toFloat()}")
+                            if (currentContact3 != 'closed') {
                             	ev = [
                                     name:   "contact3",
                                     value:  'closed',                                    
@@ -360,9 +353,9 @@ def parse(String description) {
                                 ev = [name: 'contact', value: 'Sensor3:close'] 
                             	events << createEvent(ev)        
                             }//child.sendEvent([name: 'contact3', value: 'closed', name:'contact',value:'Sensor3:close'])
-                        } else if (contact3.toFloat() ==1) {
-                        	TRACE( "received Contact3 Signal: ${contact3.toFloat()}")
-                            if (child.currentValue("contact3") != 'open') {
+                        } else if (ct3.toFloat() ==1) {
+                        	TRACE( "received Contact3 Signal: ${ct3.toFloat()}")
+                            if (currentContact3 != 'open') {
                             	ev = [
                                     name:   "contact3",
                                     value:  'open',                                    
@@ -375,32 +368,12 @@ def parse(String description) {
                     } catch (e) {
                         TRACE( "No contact3 msg")
                     }
-  /*                  try {
-                        if (contact4.toFloat() == 0) {
-                            TRACE( "received Contact4 Signal: ${contact4.toFloat()}")
-                            TRACE("C4 is ${child.currentValue("contact4")} dev ${device.currentValue("contact4")}")
-                            if(child.currentValue("contact4") != 'closed') {
-                            	TRACE("Sending 4 closed")
-                                TRACE("C4 is ${child.currentValue("contact4")} dev ${device.currentValue("contact4")}")
-                            	child.sendEvent([name: 'contact4', value: 'closed', name:'contact',value:'Sensor4:close'])
-                            }
-                        } else if (contact4.toFloat() ==1) {
-                        	TRACE( "received Contact4 Signal: ${contact4.toFloat()}")
-                            if(child.currentValue("contact4") != 'open') {
-                            	TRACE("Sending 4 open")
-                                TRACE("C4 is ${child.currentValue("contact4")} dev ${device.currentValue("contact4")}")
-                            	child.sendEvent([name: 'contact4', value: 'open', name:'contact',value:'Sensor4:open'])
-                            }
-                        }
-                    } catch (e) {
-                        TRACE( "No contact4 msg")
-                    } */
                     
                     try {
-                        if (contact4.toFloat() == 0) {
-                            TRACE( "received Contact4 Signal: ${contact4.toFloat()}")
+                        if (ct4.toFloat() == 0) {
+                            TRACE( "received Contact4 Signal: ${ct4.toFloat()}")
                             
-                            if(child.currentValue("contact4") != 'closed') {
+                            if(currentContact4 != 'closed') {
                             	ev = [
                                     name:   "contact4",
                                     value:  'closed',                                    
@@ -408,9 +381,9 @@ def parse(String description) {
                                 events << createEvent(ev)
                                 ev = [name: 'contact', value: 'Sensor4:close'] 
                             	events << createEvent(ev)                           }
-                        } else if (contact4.toFloat() ==1) {
-                        	//log.info "received Contact4 Signal: ${contact4.toFloat()}"
-                            if(child.currentValue("contact4") != 'open') {
+                        } else if (ct4.toFloat() ==1) {
+                        	TRACE( "received Contact4 Signal: ${ct4.toFloat()}")
+                            if(currentContact4 != 'open') {
                             	ev = [
                                     name:   "contact4",
                                     value:  'open',                                    
@@ -424,9 +397,9 @@ def parse(String description) {
                         TRACE( "No contact4 msg")
                     }                    
                     try {
-                        if (contact5.toFloat() == 0) {
-                            TRACE( "received Contact5 Signal: ${contact5.toFloat()}")
-                            if(child.currentValue("contact5") != 'closed'){
+                        if (ct5.toFloat() == 0) {
+                            TRACE( "received Contact5 Signal: ${ct5.toFloat()}")
+                            if(currentContact5 != 'closed'){
                             	ev = [
                                     name:   "contact5",
                                     value:  'closed',                                    
@@ -434,9 +407,9 @@ def parse(String description) {
                                 events << createEvent(ev)
                                 ev = [name: 'contact', value: 'Sensor5:close'] 
                             	events << createEvent(ev)                               	}
-                        } else if (contact5.toFloat() ==1) {
-                        	TRACE( "received Contact5 Signal: ${contact5.toFloat()}")
-                            if(child.currentValue("contact5") != 'open'){
+                        } else if (ct5.toFloat() ==1) {
+                        	TRACE( "received Contact5 Signal: ${ct5.toFloat()}")
+                            if(currentContact5 != 'open'){
 								ev = [
                                     name:   "contact5",
                                     value:  'open',                                    
@@ -450,9 +423,9 @@ def parse(String description) {
                         TRACE( "No contact5 msg")
                     }
                     try {
-                        if (contact6.toFloat() == 0) {
-                            TRACE( "received Contact6 Signal: ${contact6.toFloat()}")
-                            if(child.currentValue("contact6") != 'closed'){
+                        if (ct6.toFloat() == 0) {
+                            TRACE( "received Contact6 Signal: ${ct6.toFloat()}")
+                            if(currentContact6 != 'closed'){
                             	ev = [
                                     name:   "contact6",
                                     value:  'closed',                                    
@@ -460,9 +433,9 @@ def parse(String description) {
                                 events << createEvent(ev)
                                 ev = [name: 'contact', value: 'Sensor6:close'] 
                             	events << createEvent(ev)                               	}
-                        } else if (contact6.toFloat() ==1) {
-                        	TRACE( "received Contact6 Signal: ${contact6.toFloat()}")
-                            if(child.currentValue("contact6") != 'open'){
+                        } else if (ct6.toFloat() ==1) {
+                        	TRACE( "received Contact6 Signal: ${ct6.toFloat()}")
+                            if(currentContact6 != 'open'){
 								ev = [
                                     name:   "contact6",
                                     value:  'open',                                    
@@ -476,9 +449,9 @@ def parse(String description) {
                         TRACE( "No contact6 msg")
                     }
                     try {
-                        if (contact7.toFloat() == 0) {
-                            TRACE( "received Contact7 Signal: ${contact7.toFloat()}")
-                            if(child.currentValue("contact7") != 'closed'){
+                        if (ct7.toFloat() == 0) {
+                            TRACE( "received Contact7 Signal: ${ct7.toFloat()}")
+                            if(currentContact7 != 'closed'){
                             	ev = [
                                     name:   "contact7",
                                     value:  'closed',                                    
@@ -486,9 +459,9 @@ def parse(String description) {
                                 events << createEvent(ev)
                                 ev = [name: 'contact', value: 'Sensor7:close'] 
                             	events << createEvent(ev)                               	}
-                        } else if (contact7.toFloat() ==1) {
-                        	TRACE( "received Contact7 Signal: ${contact7.toFloat()}")
-                            if(child.currentValue("contact7") != 'open'){
+                        } else if (ct7.toFloat() ==1) {
+                        	TRACE( "received Contact7 Signal: ${ct7.toFloat()}")
+                            if(currentContact7 != 'open'){
 								ev = [
                                     name:   "contact7",
                                     value:  'open',                                    
@@ -502,9 +475,9 @@ def parse(String description) {
                         TRACE( "No contact7 msg")
                     }
                     try {
-                        if (contact8.toFloat() == 0) {
-                            TRACE( "received Contact8 Signal: ${contact8.toFloat()}")
-                            if(child.currentValue("contact8") != 'closed'){
+                        if (ct8.toFloat() == 0) {
+                            TRACE( "received Contact8 Signal: ${ct8.toFloat()}")
+                            if(currentContact8 != 'closed'){
                             	ev = [
                                     name:   "contact8",
                                     value:  'closed',                                    
@@ -512,9 +485,9 @@ def parse(String description) {
                                 events << createEvent(ev)
                                 ev = [name: 'contact', value: 'Sensor8:close'] 
                             	events << createEvent(ev)                               	}
-                        } else if (contact8.toFloat() ==1) {
-                        	TRACE( "received Contact8 Signal: ${contact8.toFloat()}")
-                            if(child.currentValue("contact8") != 'open'){
+                        } else if (ct8.toFloat() ==1) {
+                        	TRACE( "received Contact8 Signal: ${ct8.toFloat()}")
+                            if(currentContact8 != 'open'){
 								ev = [
                                     name:   "contact8",
                                     value:  'open',                                    
@@ -528,34 +501,34 @@ def parse(String description) {
                         TRACE( "No contact8 msg")
                     }
                     try {
-                        if (motion.toFloat() == 0) {
-                            TRACE( "received Motion Signal: ${motion.toFloat()}")
-                            if (child.currentMotion != 'inactive') child.sendEvent(name: 'motion', value: 'inactive')
-                        } else if (motion.toFloat() == 1) {
-                            TRACE( "received Motion Signal: ${motion.toFloat()}")
-                            if (child.currentMotion != 'active') child.sendEvent(name: 'motion', value: 'active')
+                        if (mn.toFloat() == 0) {
+                            TRACE( "received Motion Signal: ${mn.toFloat()}")
+                            if (currentMotion != 'inactive') child.sendEvent(name: 'motion', value: 'inactive')
+                        } else if (mn.toFloat() == 1) {
+                            TRACE( "received Motion Signal: ${mn.toFloat()}")
+                            if (currentMotion != 'active') child.sendEvent(name: 'motion', value: 'active')
                         }
                     } catch (e) {
                         TRACE( "No motion in msg")
                     }
                     try {
-                        if (motion1.toFloat() == 0) {
-                            TRACE( "received motion1 Signal: ${motion1.toFloat()}")
-                            if (child.currentMotion != 'inactive') child.sendEvent(name: 'motion', value: 'inactive')
-                        } else if (motion1.toFloat() == 1) {
-                            TRACE( "received motion1 Signal: ${motion1.toFloat()}")
-                            if (child.currentMotion != 'active')child.sendEvent(name: 'motion', value: 'active')
+                        if (mn1.toFloat() == 0) {
+                            TRACE( "received motion1 Signal: ${mn1.toFloat()}")
+                            if (currentMotion != 'inactive') child.sendEvent(name: 'motion', value: 'inactive')
+                        } else if (mn1.toFloat() == 1) {
+                            TRACE( "received motion1 Signal: ${mn1.toFloat()}")
+                            if (currentMotion != 'active')child.sendEvent(name: 'motion', value: 'active')
                         }
                     } catch (e) {
                         TRACE( "No motion1 in msg")
                     }
                     try {
-                        if (livingRoomLight.toFloat() == 0) {
-                            TRACE( "received lrl Signal: ${livingRoomLight.toFloat()}")
-                            if( child.currentSwitchFan != 'off') child.sendEvent(name: 'switchFan', value: 'off')
-                        } else if (livingRoomLight.toFloat() == 1) {
-                            TRACE( "received lrl Signal: ${livingRoomLight.toFloat()}")
-                            if( child.currentSwitchFan != 'on') child.sendEvent(name: 'switchFan', value: 'on')
+                        if (lrl.toFloat() == 0) {
+                            TRACE( "received lrl Signal: ${lrl.toFloat()}")
+                            if( currentSwitchFan != 'off') child.sendEvent(name: 'switchFan', value: 'off')
+                        } else if (lrl.toFloat() == 1) {
+                            TRACE( "received lrl Signal: ${lrl.toFloat()}")
+                            if( currentSwitchFan != 'on') child.sendEvent(name: 'switchFan', value: 'on')
                         }
                     } catch (e) {
                         TRACE( "No lrl in msg")
@@ -563,21 +536,33 @@ def parse(String description) {
                     try {
                         if (chc.toFloat() == 0) {
                             TRACE( "received chc Signal: ${chc.toFloat()}")
-                            if (child.currentSwitchC != 'off' )child.sendEvent(name: 'switchC', value: 'off')
+                            if (currentSwitchC != 'off' )child.sendEvent(name: 'switchC', value: 'off')
                         } else if (chc.toFloat() == 1) {
                             TRACE( "received chc Signal: ${chc.toFloat()}")
-                            if (child.currentSwitchC != 'on') child.sendEvent(name: 'switchC', value: 'on')
+                            if (currentSwitchC != 'on') child.sendEvent(name: 'switchC', value: 'on')
                         }
                     } catch (e) {
                         TRACE( "No chc in msg")
                     }
                     try {
+                    	//log.trace "TRYING CHW" 
+                        if (chw.toFloat() == 0) {
+                            TRACE("received chw Signal: ${chw.toFloat()}")
+                            sendEvent(name: 'switchW', value: 'off')
+                        } else if (chw.toFloat() == 1) {
+                            TRACE( "received chw Signal: ${chw.toFloat()}")
+                            sendEvent(name: 'switchW', value: 'on')
+                        }
+                    } catch (e) {
+                        log.trace "No chw in msg"
+                    }
+                    try {
                         if (cha.toFloat() == 0) {
                             TRACE( "received cha Signal: ${cha.toFloat()}")
-                            child.sendEvent(name: 'switchA', value: 'off')
+                            sendEvent(name: 'switchA', value: 'off')
                         } else if (cha.toFloat() == 1) {
                             TRACE( "received cha Signal: ${cha.toFloat()}")
-                            child.sendEvent(name: 'switchA', value: 'on')
+                            sendEvent(name: 'switchA', value: 'on')
                         }
                     } catch (e) {
                         TRACE( "No cha in msg")
@@ -585,35 +570,35 @@ def parse(String description) {
                     try {
                         if (we1.toFloat() == 0) {
                             TRACE( "received we1 Signal: ${we1.toFloat()}")
-                            child.sendEvent(name: 'switchWemo1', value: 'off')
+                            sendEvent(name: 'switchWemo1', value: 'off')
                         } else if (we1.toFloat() == 1) {
                             TRACE( "received we1 Signal: ${we1.toFloat()}")
-                            child.sendEvent(name: 'switchWemo1', value: 'on')
+                            sendEvent(name: 'switchWemo1', value: 'on')
                         } else  {
                         	TRACE( "received we1 error: ${we1.toFloat()}")
-                            child.sendEvent(name: 'switchWemo1', value: 'error')
+                            sendEvent(name: 'switchWemo1', value: 'error')
                         }
                     } catch (e) {
                         TRACE( "No we1 in msg")
                     }
                     try {
-                        if (orvibo1.toFloat() == 0) {
-                            TRACE( "received or1 Signal: ${orvibo1.toFloat()}")
-                            child.sendEvent(name: 'switchOrvibo1', value: 'off')
-                        } else if (orvibo1.toFloat() == 1) {
-                            TRACE( "received or1 Signal: ${orvibo1.toFloat()}")
-                            child.sendEvent(name: 'switchOrvibo1', value: 'on')
+                        if (or1.toFloat() == 0) {
+                            TRACE( "received or1 Signal: ${or1.toFloat()}")
+                            sendEvent(name: 'switchOrvibo1', value: 'off')
+                        } else if (or1.toFloat() == 1) {
+                            TRACE( "received or1 Signal: ${or1.toFloat()}")
+                            sendEvent(name: 'switchOrvibo1', value: 'on')
                         } else  {
                         	TRACE( "received or1 error: ${orvibo1.toFloat()}")
-                            child.sendEvent(name: 'switchOrvibo1', value: 'error')
+                            sendEvent(name: 'switchOrvibo1', value: 'error')
                         }
                     } catch (e) {
                         TRACE( "No orvibo1 in msg")
                     }
                     try {
-                        if (livingRoomFan.toFloat() >= 0) {
-                            TRACE( "received lrf Signal: ${livingRoomFan.toFloat()}")
-                            child.sendEvent(name: 'level', value: livingRoomFan)
+                        if (lrf.toFloat() >= 0) {
+                            TRACE( "received lrf Signal: ${lrf.toFloat()}")
+                            sendEvent(name: 'level', value: lrf)
                         } 
                     } catch (e) {
                         TRACE( "No lrf in msg")
@@ -627,6 +612,8 @@ def parse(String description) {
         } catch (e) {
             TRACE("NO XML: Probably a GET response: $e")
         }
+    } else {
+    	TRACE("Missed first IF")
     }
     TRACE("EVENTS: ${events}")
     return events
@@ -662,7 +649,7 @@ private getHostAddress() {
 }
 
 def getRequest(path) {
-    log.debug "Sending request for ${path} from ${device.deviceNetworkId}"
+    //log.debug "Sending request for ${path} from ${device.deviceNetworkId}"
 
     new physicalgraph.device.HubAction(
         'method': 'GET',
@@ -672,7 +659,7 @@ def getRequest(path) {
         ], device.deviceNetworkId)
 }
 def postRequest(path,json) {
-    log.debug "Sending request for ${path} message ${json} from ${device.deviceNetworkId}"
+   // log.debug "Sending request for ${path} message ${json} from ${device.deviceNetworkId}"
 
     new physicalgraph.device.HubAction(
         'method': 'POST',
@@ -699,7 +686,7 @@ private apiPost(String path, data) {
     return new physicalgraph.device.HubAction(httpRequest)
 }
 private def writeValue(name, value) {
-    TRACE("writeValue(${name}, ${value})")
+   // TRACE("writeValue(${name}, ${value})")
 
     //setNetworkId(confIpAddr, confTcpPort)
 
@@ -711,14 +698,14 @@ private def writeValue(name, value) {
     return hubActions
 }
 def poll() {
-    log.debug "Executing 'poll' from ${device.deviceNetworkId} "
+    //log.debug "Executing 'poll' from ${device.deviceNetworkId} "
 
     def path = getDataValue("ssdpPath")
     getRequest(path)
 }
 
 def refresh() {
-    log.debug "Executing 'refresh'"
+    //log.debug "Executing 'refresh'"
 
     def path = getDataValue("ssdpPath")
     getRequest(path)
@@ -726,7 +713,7 @@ def refresh() {
 
 def subscribe() {
 	state.ssdpPath = getDataValue("ssdpPath")
-    log.debug "Subscribe requested\r\n${state.ssdpPath}"
+    //log.debug "Subscribe requested\r\n${state.ssdpPath}"
     subscribeAction(getDataValue("ssdpPath"))
 }
 
@@ -817,7 +804,7 @@ private subscribeAction(path, callbackPath="") {
 }
 
 def on() {
-	TRACE("SWITCH ON")
+	//TRACE("SWITCH ON")
     onFan()
 	
 }
@@ -853,6 +840,21 @@ def offC() {
 	TRACE("sending offC()")
     sendEvent([name:"switchC", value:"off"])
     return writeValue('cmd', 600)
+}
+def onW() {
+    TRACE("onW()")
+
+	TRACE("sending onW()")
+    sendEvent([name:"switchW", value:"on"])
+    return writeValue('cmd', 605)
+}
+
+def offW() {
+    TRACE("offW()")
+
+	TRACE("sending offW()")
+    sendEvent([name:"switchW", value:"off"])
+    return writeValue('cmd', 604)
 }
 def onA() {
     TRACE("onA()")
@@ -941,5 +943,5 @@ private sendValue(level) {
 }
 
 private def TRACE(message) {
-    log.trace message
+    log.debug message
 }

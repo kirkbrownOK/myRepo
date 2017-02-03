@@ -35,10 +35,13 @@ metadata {
 
 
     // Custom attributes
-    attribute "ardPower", "number"
+    attribute "ardEnergy", "number"
+    attribute "todayEnergy", "number"
+    attribute "todayArdEnergy", "number"
     attribute "lastResetTime", "number"
 	attribute "failedMsg", "number"
 	attribute "lastMess", "number"
+    attribute "plotwatt", "string"
         // Custom commands
 	command "newDay"
 	command "resetDevice"
@@ -57,49 +60,42 @@ metadata {
 			state "default", label:'reset Meter', action:"newDay", icon: "st.Outdoor.outdoor20"
 		}
         valueTile("power", "device.power") {
-			state "default", label:'${currentValue} W', action:"refresh",canChangeIcon: true, icon: "st.Electronics.electronics13"
+			state "default", label:'${currentValue} W', action:"refresh"
 		}
 		valueTile("energy", "device.energy") {
 			state "default", label:'${currentValue} kWh',action: "refresh"
 		}
-        	valueTile("ardPower", "device.ardPower") {
-			state "default", label:'Ard: ${currentValue} kWh',action:"refresh"
+        valueTile("ardEnergy", "device.ardEnergy") {
+			state "default", label:'${currentValue} kWh',action:"refresh"
 		}
+        valueTile("todayEnergy", "device.todayEnergy") {
+			state "default", label:'1: ${currentValue} kWh',action:"refresh"
+		}
+        valueTile("todayArdEnergy", "device.todayArdEnergy") {
+			state "default", label:'2: ${currentValue} kWh',action:"refresh"
+		}        
         valueTile("reset", "device.lastResetTime", inactiveLabel: false, decoration: "flat") {
 			state "default", label:'RST: ${currentValue}', action:"resetDevice"
 		}
         valueTile("failedMsg", "device.failedMsg", inactiveLabel: false, decoration: "flat") {
 			state "default", label:'FMC: ${currentValue}', action:"refresh.refresh"
 		}	
-        valueTile("PWsuccess", "device.PWsuccess", inactiveLabel: false, decoration: "flat") {
-			state "PWsuccess", label:'Successful ${currentValue}', action:"refresh.refresh", 
-            backgroundColors:[
-                    [value: 1, color: "#44b621"]
-                ]
-		}
-        valueTile("PWfailures", "device.PWfailures", inactiveLabel: false, decoration: "flat") {
-			state "PWfailures", label:'Failures ${currentValue}', action:"refresh.refresh",canChangeIcon: true, 
-            backgroundColors:[
-                    [value: 1, color: "#bc2323"]
-                ] 
-                   
-		}
 
         main(["power"])
 
-        details(["power", "energy","ardPower","refresh","resetDay", "reset","failedMsg","PWsuccess","PWfailures"])
+        details(["power", "energy","ardEnergy","todayEnergy","todayArdEnergy","refresh","resetDay", "reset","failedMsg"])
     }
 }
 def parse(String message) {
-    TRACE("parse(${message})")
-	TRACE( "Basic ${plotwattApiKey.encodeAsBase64()}")
+    //TRACE("parse(${message})")
+	//log.debug "Basic ${plotwattApiKey.encodeAsBase64()}"
     def msg = stringToMap(message)
 
     if (msg.headers) {
         // parse HTTP response headers
         def headers = new String(msg.headers.decodeBase64())
         def parsedHeaders = parseHttpHeaders(headers)
-        TRACE("parsedHeaders: ${parsedHeaders}")
+        //TRACE("parsedHeaders: ${parsedHeaders}")
         if (parsedHeaders.status != 200) {
             log.error "Server error: ${parsedHeaders.reason}"
             return null
@@ -118,8 +114,9 @@ def parse(String message) {
         float EMonSum = tstat.EMpower[0].toFloat()
         int removeEvery = 0
         int numOfSamples = tstat.EMpower.size()
+        //int numOfSamples = 3
         int csvTime = (now()/1000).toFloat().round()
-        TRACE("Number of samples: ${numOfSamples} at ${csvTime}")
+        //TRACE("Number of samples: ${numOfSamples} at ${csvTime}")
         //def csv = "${meterNumber},${tstat.EMpower[0].toFloat()},${csvTime-numOfSamples}"
         def csv = "${meterNumber},${tstat.EMpower[0].toFloat()},${csvTime-numOfSamples}"
         state.removeCounter = 1
@@ -143,25 +140,36 @@ def parse(String message) {
                         state.removeCounter = state.removeCounter +1
                     }
             }
+            //This will send the entire CSV body to plotwatt plotter for posting
+            sendEvent([name: "plotwatt", value: "${csv}"])
                     //"Host": "plotwatt.com",	
+                    /*
             def postParams = [
-            uri: "https://www.plotwatt.com",
-            path: "/api/v2/push_readings",
+            //    https://www.plotwatt.com/api/v2/push_readings
+            uri: "https://plotwatt.com/api/v2/push_readings",
+            //path: "/api/v2/push_readings",
             headers: [ 
                 Host : "plotwatt.com",
-                Authorization : "Basic ${plotwattApiKey.encodeAsBase64()}",
-                Connection: "close"
+                Authorization : "Basic ${plotwattApiKey.encodeAsBase64()}"
             ],
             body: csv
             ]
-            TRACE( postParams)
+            */
+            //https://api.thingspeak.com/apps/thinghttp/send_request?api_key=ZFPLI5P8F948JO2W&body=csv
+            def getParams = [
+            uri: "https://api.thingspeak.com",
+            path: "/apps/thinghttp/send_request?api_key=ZFPLI5P8F948JO2W&body=${csv}"
+            ]
+           
+/*            log.debug getParams
             try {
-                httpPost(postParams) {   
+                httpGet(getParams) {   
                 resp -> 
+                log.debug "resp.data: ${resp.data}"
                 resp.headers.each {
-                    //log.debug "${it.name} : ${it.value}"
+                    log.debug "${it.name} : ${it.value}"
                     if (it.name == "Content-Length") {
-                        //log.debug "CL: ${it.value}"
+                        log.debug "P CL: ${it.value}"
                         if (it.value == "2") {
                             log.info "OK Success"
                             state.PWsuccess = state.PWsuccess + 1
@@ -177,7 +185,7 @@ def parse(String message) {
                 }
             } catch (e) {
                 if ( e == "groovy.lang.StringWriterIOException: java.io.IOException: Stream closed") {
-                    TRACE("stream closed as expected")
+                    log.info "stream closed as expected"
                     state.PWsuccess = state.PWsuccess + 1
                     sendEvent([name: "PWsuccess", value: state.PWsuccess])
                 } else {
@@ -186,7 +194,7 @@ def parse(String message) {
                     sendEvent([name: "PWfailures", value: state.PWfailures])
                 }
             }
-
+*/
             state.empower = (EMonSum/numOfSamples)  
             TRACE("EM SUM: ${EMonSum} Num of Samples: ${numOfSamples} Average: ${state.empower}")
             return parseTstatData(tstat[1])
@@ -200,9 +208,17 @@ def parse(String message) {
 }
 def updated() {
 	if(energyControl > 0) {
-    	state.engerySum = energyControl
-        state.ardPower = energyControl
+    	state.todayEngerySum = energyControl
+        state.todayArdEnergy = energyControl
         //energyControl = 0.0
+    }
+    if(state.energySum > 0) {
+    
+    } else {
+    	state.energySum = 0
+        state.ardEnergy = 0
+        state.todayEngerySum = 0
+        state.todayArdEnergy = 0
     }
     if (state.lastTimeReceived > 0) {
     	//TRACE("LTR established")
@@ -216,24 +232,10 @@ def updated() {
         state.failedMessageCount = 0
         TRACE("FMC Corrected")
     }
-    if (state.PWsuccess >= 0) {
-    
-    } else {
-    	state.PWsuccess = 0
-        sendEvent([name: "PWsuccess", value: state.PWsuccess])
-    }
-    if (state.PWfailures >=0) {
-    
-    } else {
-    	state.PWfailures = 0
-        sendEvent([name: "PWfailures", value: state.PWfailures])
-    }
+
     
     //TRACE("Updated->Reset Counters")
 }
-
-
-
 
 // polling.poll 
 def poll() {
@@ -373,6 +375,7 @@ private def parseTstatData(Map tstat) {
         
         }
         state.energySum = ((tstat.usC.toFloat() + tstat.usD.toFloat())*tstat.lastRefresh.toFloat()/3600.0)+state.energySum
+        state.todayEnergySum = ((tstat.usC.toFloat() + tstat.usD.toFloat())*tstat.lastRefresh.toFloat()/3600.0)+state.todayEnergySum
         ev = [
             name:   "energy",
             //value: 24
@@ -381,25 +384,38 @@ private def parseTstatData(Map tstat) {
         ]
         //TRACE(ev)
         events << createEvent(ev)
-        state.ardPower = tstat.STpower.toFloat() + state.ardPower
         ev = [
-            name:   "ardPower",
+            name:   "todayEnergy",
             //value: 24
             //value:  device.currentState("energy")?.toFloat() + ((tstat.usC.toFloat() + tstat.usD.toFloat())*tstat.lastRefresh.toFloat()/3600.0).round(1)
-        	value: state.ardPower.round(2)
+        	value: state.todayEnergySum.round(1)
+        ]
+        //TRACE(ev)
+        events << createEvent(ev)
+        //state.ardEnergy = state.ardPower
+        
+        state.ardEnergy = tstat.STpower.toFloat() + state.ardEnergy
+        state.todayArdEnergy = tstat.STpower.toFloat() + state.todayArdEnergy
+        ev = [
+            name:   "ardEnergy",
+            //value: 24
+            //value:  device.currentState("energy")?.toFloat() + ((tstat.usC.toFloat() + tstat.usD.toFloat())*tstat.lastRefresh.toFloat()/3600.0).round(1)
+        	value: state.ardEnergy.round(2)
+        ]
+        //TRACE(ev)
+        events << createEvent(ev)
+        ev = [
+            name:   "todayArdEnergy",
+            //value: 24
+            //value:  device.currentState("energy")?.toFloat() + ((tstat.usC.toFloat() + tstat.usD.toFloat())*tstat.lastRefresh.toFloat()/3600.0).round(1)
+        	value: state.todayArdEnergy.round(2)
         ]
         //TRACE(ev)
         events << createEvent(ev)
         if ( tstat.lastResetTime == device.currentValue("lastResetTime")) {
             TRACE("lastReset received but same as last time")
             state.failedMessageCount ++
-        } /*else if(tstat.lastMess == 0){
-        	//Last message to PlotWatt failed
-            TRACE("Last Plotwatt message failed")
-            //state.failedMessageCount ++
-            sendEvent([name: "lastMess", value: 0])
-        
-        } */else {
+        } else {
             state.failedMessageCount = 0 //Valid message received
             state.lastTimeReceived = now()
             
@@ -434,16 +450,12 @@ private def parseDoorState(val) {
 }
 
 private def newDay() {
-	state.energySum = 0.0
-    state.ardPower = 0.0
+	state.todayEnergySum = 0.0
+    state.todayArdEnergy = 0.0
     state.dayHasBeenReset = true
-    state.PWfailures = 0
-    state.PWsuccess = 0
 	TRACE("newday")
-	sendEvent([name: "energy", value: state.energySum, descriptionText:"New Day Triggered",linkText:"EnergyMon"])
-    sendEvent([name: "ardPower", value: state.ardPower, descriptionText:"New Day Triggered",linkText:"EnergyMon"])
-    sendEvent([name: "PWsuccess", value: state.PWsuccess, descriptionText: "Restart Counter"])
-	sendEvent([name: "PWfailures", value: state.PWfailures, descriptionText: "Restart Counter"])
+	sendEvent([name: "todayEnergy", value: state.energySum, descriptionText:"New Day Triggered",linkText:"EnergyMon"])
+    sendEvent([name: "todayArdEnergy", value: state.ardPower, descriptionText:"New Day Triggered",linkText:"EnergyMon"])
 }
 def resetDevice() {
 	TRACE("RESET CALLED")
@@ -452,7 +464,7 @@ def resetDevice() {
 }
 
 private def TRACE(message) {
-    //log.debug message
+    log.debug message
 }
 
 private def STATE() {
