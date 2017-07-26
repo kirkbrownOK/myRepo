@@ -51,9 +51,9 @@ def updated() {
 def initialize() {
 	subscribe(housePower,"power",powerEvent)
 	// TODO: subscribe to attributes, devices, locations, etc.
-    state.apiKey = "1ykdl5x9rbuzhspdz3r3zi8jonu3xbd9"
-    state.apiId = "a0qaugm2iu333isjzsg2i2ghsjqupntn"
-    state.sensorId = "59919802"
+	state.apiKey = "${settings.api_key}"
+	state.apiId = "${settings.api_id}"
+	state.sensorId = "${settings.sensor_id}"
     
 }
 public wattvisionDateFormat() { "yyyy-MM-dd'T'HH:mm:ss" }
