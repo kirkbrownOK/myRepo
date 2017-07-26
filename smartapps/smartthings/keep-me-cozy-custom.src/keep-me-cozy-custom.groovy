@@ -29,6 +29,7 @@ preferences() {
         }
     section("Optionally choose Virtual Thermost to use with Amazon Echo for voice controls") {
     	input "virtualThermostat", "capability.thermostat", title: "Virtual Thermostat", required: false
+        input "realThermostat", "capability.thermostat", title: "Real Thermostat", required: false 
     }
     section("How long to delay between turning HVAC on?") {
 		input "sensorDelay", "number", title: "Sensor Delay", required: false
@@ -70,14 +71,14 @@ def updated()
 def subscribeToEvents()
 {
 	subscribe(location, changedLocationMode)
+    subscribe(thermostat, "temperature", temperatureHandlerThermostat)
+	subscribe(thermostat, "thermostatMode", temperatureHandler)
+    subscribe(thermostat, "thermostatOperatingstate", temperatureHandler)
 	if (sensor) {
     	sensor.each{
         	log.trace("${it.name}")
 			subscribe(it, "temperature", temperatureHandler)
         }    
-		subscribe(thermostat, "temperature", temperatureHandlerThermostat)
-		subscribe(thermostat, "thermostatMode", temperatureHandler)
-        subscribe(thermostat, "thermostatOperatingstate", temperatureHandler)
         if(virtualThermostat) {
         	virtualThermostat.setHeatingSetpoint(state.heatingSetpoint)
             virtualThermostat.setCoolingSetpoint(state.coolingSetpoint)
@@ -86,7 +87,13 @@ def subscribeToEvents()
             subscribe(virtualThermostat, "coolingSetpoint", virtualCoolingSetpoint)
         }
         
-	}
+	} else if(realThermostat) {
+        	subscribe(realThermostat, "heatingSetpoint", temperatureHandlerThermostat)
+            subscribe(realThermostat, "coolingSetpoint", temperatureHandlerThermostat)
+            subscribe(realThermostat, "temperature", temperatureHandlerThermostat)
+            subscribe(realThermostat, "thermostatFanMode", temperatureHandlerThermostat)
+            runEvery5Minutes(fiveMinuteUpdate)
+        }
 	//evaluate()
 }
 
@@ -128,10 +135,13 @@ def temperatureHandler(evt)
     }
 	
 }
-
+def fiveMinuteUpdate() {
+	log.debug "5 minute update"
+    evaluate()
+}
 def temperatureHandlerThermostat(evt)
 {	
-	log.debug "Thermostat temp update"
+	log.debug "Thermostat temp update: $evt.name $evt.value $evt.descriptionText"
 	evaluate()
    	
 }
@@ -195,7 +205,64 @@ def evaluate()
 				log.debug "thermostat.setHeatingSetpoint(${ct - 3}), OFF"
 			}
 		}
-	}
+	} else if (realThermostat) {
+    	def tm = thermostat.currentThermostatMode
+    	def rtm = realThermostat.currentThermostatMode
+		def ct = thermostat.currentTemperature
+        def rct = realThermostat.currentTemperature
+        if (rtm != tm) {
+        	log.debug "rtm is $rtm and tm is $tm setting tm to $rtm"
+            thermostat."$rtm"()
+        }
+        if(thermostat.currentHold != "on") {
+        	log.debug "Hold got turned on"
+        	thermostat.holdOn()
+        }
+        log.debug "rt fan mode is $realThermostat.currentThermostatFanMode and therm fan mode is $thermostat.currentThermostatFanMode"
+        if (realThermostat.currentThermostatFanMode == "fanAuto") {
+        	if (thermostat.currentThermostatFanMode != "auto") {
+            	thermostat.fanAuto()
+                log.debug "Setting the Fan to Auto"
+            }
+        } else if (realThermostat.currentThermostatFanMode == "fanOn") {
+        	if( thermostat.currentThermostatFanMode != "on") {
+            	thermostat.fanOn()
+            }
+        }
+        def currentTemp = rct
+        log.trace("evaluate:, mode: $tm/$rtm -- temp: $ct/$rct, heat: $thermostat.currentHeatingSetpoint/$realThermostat.currentHeatingSetpoint, cool: $thermostat.currentCoolingSetpoint/$realThermostat.currentCoolingSetpoint -- "  +
+			"sensor: $currentTemp, heat: $realThermostat.currentHeatingSetpoint, cool: $realThermostat.currentCoolingSetpoint")
+		if (rtm == "cool") {
+			// air conditioner
+            //TRUE -> 72    -  69  >= 1.0 Evaluates true -> Send 65 - 3 = 62 Deg
+            //False -> 69 - 69 >= 1.0 Evaluates False
+			if (currentTemp - realThermostat.currentCoolingSetpoint > 0) {
+				thermostat.setCoolingSetpoint(ct - 3)
+				log.debug "thermostat.setCoolingSetpoint(${ct - 3}), ON"
+			}
+            //true -> 
+			//else if (state.coolingSetpoint - currentTemp >= threshold && ct - thermostat.currentCoolingSetpoint >= threshold) {
+			else if (realThermostat.currentCoolingSetpoint - currentTemp >= 0 ) {
+				thermostat.setCoolingSetpoint(ct + 3)
+				log.debug "thermostat.setCoolingSetpoint(${ct + 3}), OFF"
+			}
+		}
+		if (rtm in ["heat","emergency heat"]) {
+			// heater : 80 - 75 > 0 -> 5 > 0 true turn heater ON bc it is 5 below setpoint
+			if (realThermostat.currentHeatingSetpoint - currentTemp > 0) {
+            	    if((now() - state.lastIdle)/1000 > (60*state.sensorDelay) ) {
+                        thermostat.setHeatingSetpoint(ct + 3)
+                        log.debug "thermostat.setHeatingSetpoint(${ct + 3}), Turn Heater on"
+                    }				
+			}
+			//else if (currentTemp - state.heatingSetpoint >= threshold && thermostat.currentHeatingSetpoint - ct >= threshold) {
+            // Temp is 70 setpoint is 68 -> 2 is not > 0 so turn off 
+			else if (currentTemp - realThermostat.currentHeatingSetpoint >= 0) {
+            	thermostat.setHeatingSetpoint(ct - 3)
+				log.debug "thermostat.setHeatingSetpoint(${ct - 3}), OFF"
+			}
+		}
+    }
 	else {
 		thermostat.setHeatingSetpoint(61)
 		thermostat.setCoolingSetpoint(69)
@@ -229,6 +296,17 @@ def updateVirtualThermostat() {
 	log.debug "Updating Thermostat: FAN: $thermostat.currentThermostatFanMode TherMode: $thermostat.currentThermostatMode OpState: $thermostat.currentThermostatOperatingState H: ${sensor[0].currentHumidity}"
 	virtualThermostat.setThermostatFanMode(thermostat.currentThermostatFanMode)
     virtualThermostat.setThermostatMode(thermostat.currentThermostatMode)
-    virtualThermostat.setThermostatOperatingState(thermostat.currentThermostatOperatingState)
-    virtualThermostat.setHumidity(sensor[0].currentHumidity)
+    try {
+    	virtualThermostat.setThermostatOperatingState(thermostat.currentThermostatOperatingState)
+    } catch (e) {
+    	log.info "Thermostat doesn't include operating state"
+    
+    }
+    try {
+    	virtualThermostat.setHumidity(sensor[0].currentHumidity)
+    } catch (e) {
+    	log.info "Thermostat doesn't include humidity"
+    
+    }
+    
 }
