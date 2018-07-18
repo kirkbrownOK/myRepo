@@ -63,7 +63,8 @@ def powerEvent(evt) {
     def watthours = 1000*housePower.currentEnergy
 	TRACE("AT ${timeReceived} Recevied ${housePower.name} at ${evt.value} ${evt.unit} kWh ${housePower.currentEnergy} Wh ${watthours}")
     
-    def postBody = "{\"sensor_id\":\"${state.sensorId}\",\"api_id\":\"${state.apiId}\",\"api_key\":\"${state.apiKey}\",\"time\":\"${timeReceived}\",\"watts\":${evt.value},\"watthours\":\"${watthours}\"}"
+    def postBody = "{\"sensor_id\":\"${state.sensorId}\",\"api_id\":\"${state.apiId}\",\"api_key\":\"${state.apiKey}\",\"time\":\"${timeReceived}\" \
+    	,\"watts\":${evt.value},\"watthours\":\"${watthours}\",\"erate_avg\":0.14,\"rate\":0.10}"
 	//TRACE("Body: $postBody")
     	def params = [
         	uri: "https://www.wattvision.com/api/v0.2/elec",
@@ -74,7 +75,7 @@ def powerEvent(evt) {
             //body: ["sensor_id":state.sensorId,"api_id":state.apiId,"api_key":state.apiKey,"time":timeReceived,"watts":evt.value]
             body: postBody
             ]
-        //TRACE("Posting ${params}")   
+        TRACE("Posting ${params}")   
         httpPost(params) { resp ->
         
 //            resp.headers.each {
@@ -86,5 +87,5 @@ def powerEvent(evt) {
 
 }
 def TRACE(msg) {
-	log.debug msg
+	//log.debug msg
 }
