@@ -13,14 +13,17 @@
  *  for the specific language governing permissions and limitations under the License.
  *
  */
-
+preferences {
+    input "confIpAddr", "string", title:"Arduino IP Address", defaultValue: "C0A8566F",required:false, displayDuringSetup: true
+    
+}
 metadata {
     definition (name: "Arduino LAN", namespace: "kirkbrownOK", author: "Kirk Brown") {
         capability "Contact Sensor"
         capability "Polling"
         capability "Refresh"
         capability "Temperature Measurement"
-        capability "Switch Level"
+        //capability "Switch Level"
 		capability "Actuator"
 		capability "Indicator"
         capability "Temperature Measurement"
@@ -48,12 +51,14 @@ metadata {
         attribute "contact8", "string"
         
         
+        
         command "onC"
         command "offC"
         command "onA"
         command "offA"
         command "onW"
         command "offW"
+        command "updateIPADDRESS"
         command "orviboOn1"
         command "orviboOff1"
         command "refreshOrvibo1"
@@ -130,9 +135,9 @@ metadata {
         standardTile("refresh", "device.switch", inactiveLabel: false, decoration: "flat") {
             state "default", label:'', action:"refresh.refresh", icon:"st.secondary.refresh"
         }
-        standardTile("switchFan", "device.switchFan", width: 1, height: 1, canChangeIcon: true, canChangeBackground: true) {
-			state "off", label: '${name}', action: "onFan", icon: "st.Lighting.light24", backgroundColor: "#ffffff"
-			state "on", label: '${name}', action: "offFan", icon: "st.Lighting.light24", backgroundColor: "#79b821"
+        standardTile("switchFan", "device.switchOrvibo1", width: 1, height: 1, canChangeIcon: true, canChangeBackground: true) {
+			state "off", label: '${name}', action: "on", icon: "st.Lighting.light24", backgroundColor: "#ffffff"
+			state "on", label: '${name}', action: "off", icon: "st.Lighting.light24", backgroundColor: "#79b821"
 		}
         standardTile("switchC", "device.switchC", width: 1, height: 1, canChangeIcon: true, canChangeBackground: true) {
 			state "off", label: 'G: ${name}', action: "onC", icon: "st.Appliances.appliances17", backgroundColor: "#ffffff"
@@ -161,6 +166,9 @@ metadata {
         standardTile("switchAon", "device.switchA", width: 1, height: 1, canChangeIcon: true, canChangeBackground: true) {
 			state "default", label: 'Fan ON', action: "onA", icon: "st.Appliances.appliances17", backgroundColor: "#79b821"
 		}
+        standardTile("updateIP", "device.switch", width: 1, height: 1, canChangeIcon: true, canChangeBackground: true) {
+			state "default", label: 'Update IP', action: "updateIPADDRESS", icon: "st.Appliances.appliances17", backgroundColor: "#79b821"
+		}        
         standardTile("switchAoff", "device.switchA", width: 1, height: 1, canChangeIcon: true, canChangeBackground: true) {
 			state "default", label: 'Fan OFF', action: "offA", icon: "st.Appliances.appliances17", backgroundColor: "#ffffff"
 		}
@@ -204,7 +212,7 @@ metadata {
         	"switchA","switchAon","switchAoff","switchW","switchWon","switchWoff",
             "switchWemo1","switchWemoOn1","switchWemoOff1",
             "switchOrvibo1","switchOrviboOn1","switchOrviboOff1","motion","contact","contact1","contact2","contact3",
-            "contact4","contact5","contact6","contact7","contact8","refresh"])
+            "contact4","contact5","contact6","contact7","contact8","updateIP","refresh"])
     }
 }
 
@@ -284,7 +292,7 @@ def parse(String description) {
                     try {
                         if (rc.toFloat() >= 0) {
                             TRACE( "received Switch Signal: ${rc.toFloat()}")
-                            if( currentSwitch != rc) sendEvent(name: 'switch', value: rc)
+                            //if( currentSwitch != rc) sendEvent(name: 'switch', value: rc)
                         }
                     } catch (e) {
                         TRACE( "No Switch msg")
@@ -585,9 +593,11 @@ def parse(String description) {
                         if (or1.toFloat() == 0) {
                             TRACE( "received or1 Signal: ${or1.toFloat()}")
                             sendEvent(name: 'switchOrvibo1', value: 'off')
+                            sendEvent(name: 'switch', value: 'off')
                         } else if (or1.toFloat() == 1) {
                             TRACE( "received or1 Signal: ${or1.toFloat()}")
                             sendEvent(name: 'switchOrvibo1', value: 'on')
+                            sendEvent(name: 'switch', value: 'on')
                         } else  {
                         	TRACE( "received or1 error: ${orvibo1.toFloat()}")
                             sendEvent(name: 'switchOrvibo1', value: 'error')
@@ -718,7 +728,7 @@ def subscribe() {
 }
 
 private def parseDiscoveryMessage(String description) {
-	//TRACE("In PDM:${description}")
+	TRACE("In PDM:${description}")
     def device = [:]
     def parts = description.split(',')
     parts.each { part ->
@@ -780,7 +790,6 @@ private def parseDiscoveryMessage(String description) {
             }
         }
     }
-
     device
 }
 
@@ -805,13 +814,13 @@ private subscribeAction(path, callbackPath="") {
 
 def on() {
 	//TRACE("SWITCH ON")
-    onFan()
+	orviboOn1()
 	
 }
 
 def off() {
 	TRACE("SWITCH OFF")
-	offFan()
+	orviboOff1()
 }
 def onFan() {
     TRACE("onFan()")
@@ -898,6 +907,7 @@ def orviboOn1() {
 
 	TRACE("sending orviboon1()")
     sendEvent([name:"switchOrvibo1", value:"on"])
+    sendEvent([name:"switch", value:"on"])
     return writeValue('cmd', 619)
 }
 
@@ -906,6 +916,7 @@ def orviboOff1() {
 
 	TRACE("sending orvibooff1()")
     sendEvent([name:"switchOrvibo1", value:"off"])
+    sendEvent([name:"switch", value:"off"])
     return writeValue('cmd', 620)
 }
 def refreshOrvibo1() {
@@ -940,6 +951,13 @@ private sendValue(level) {
 	if (level < 85) return 66
     if (level < 100) return 99
 
+}
+private updateIPADDRESS() {
+	def ip = getDataValue("ip")
+	TRACE("Attempting IP SET from $ip to $confIpAddr ")
+	updateDataValue("ip", confIpAddr)
+    ip = getDataValue("ip")
+    TRACE("Now ip is $ip to $confIpAddr ")
 }
 
 private def TRACE(message) {

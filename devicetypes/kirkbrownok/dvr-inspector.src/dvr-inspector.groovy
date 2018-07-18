@@ -16,8 +16,9 @@
  
 import groovy.json.JsonSlurper
 preferences {
-    input("MinutesOfError","number",title: "Only send error event if in error condition for this many minutes: ", defaultValue:10, required: false)
+    input("MinutesOfError","number",title: "Only send error event if in error condition for this many minutes: ", defaultValue:10, required: false)   
     input("myURL","string",title: "The URL of the camera", defaultValue: "http://q2217.xipcam.com", required: true)
+	input("myPort", "number", title: "The port # to use:",  required: false)
 }
 metadata {
 	definition (name: "DVR Inspector", namespace:"kirkbrownOK", author:"Kirk Brown") {
@@ -76,7 +77,7 @@ def refresh() {
         contentType: 'application/json',
         query: ['gt[timestamp]': "now-${MinutesToAverage}min"],*/
        // headers: [host: "data.sparkfun.com", accept: "*/*" ]
-        uri: "${myURL}:88",
+        uri: "${myURL}:${myPort}",
     	path: "/"//,
         //contentType: 'application/json',
         //query: ["gt[timestamp]":"now-${SAMPLESTOAVERAGE}min"]
@@ -85,12 +86,17 @@ def refresh() {
 	try {
     	TRACE(params)
     	httpGet(params) { resp ->
-        	//resp.headers.each {
-        	//	log.debug "${it.name} : ${it.value}"
-    		//}
+        	resp.headers.each {
+        		log.debug "${it.name} : ${it.value}"
+    		}
             //log.debug "response server: ${resp.headers.server}"   
             if( resp.headers.server == "WCY_WEBServer/2.0") {
                 log.debug "DVR Server Detected!!!"
+                sendEvent([name: "switch", value: "on"])
+                sendEvent([name: "switch2", value: "on"])
+                state.successfulMessage = now()
+            } else if( resp.headers.server =="Cross Web Server") {
+            	log.debug "DVR Server 2 Detected!!!"
                 sendEvent([name: "switch", value: "on"])
                 sendEvent([name: "switch2", value: "on"])
                 state.successfulMessage = now()

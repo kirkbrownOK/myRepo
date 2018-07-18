@@ -29,7 +29,8 @@ preferences {
         required:true, displayDuringSetup: true)
     input("confTcpPort", "number", title:"TCP Port",
         defaultValue:"80", required:true, displayDuringSetup:true)
-    input("MinutesOfError","number",title: "Only send error event if in error condition for this many minutes: ", defaultValue:10, required: false)
+    input("MinutesOfError","number",title: "Only send error event if in error condition for this many minutes: ", defaultValue:30, required: false)
+    input("tempOffset","number",title: "Temperature offset", defaultValue:0, required: false)
 }
 
 metadata {
@@ -43,6 +44,7 @@ metadata {
         capability "Switch"
         
         command "refresh"
+        attribute "malfunction","string"
 
         
     }
@@ -95,11 +97,14 @@ metadata {
 		standardTile("refresh", "device.temperature", inactiveLabel: false, decoration: "flat") {
 			state "default", label:'', action:"refresh.refresh", icon:"st.secondary.refresh"
 		}
-
+        standardTile("state", "device.malfunction", inactiveLabel: false, decoration: "flat") {
+			state "normal", label:'normal'
+            state "emergency", label:'broken'
+		}
 
         main(["temperature"])
 
-        details(["temperature", "temperature1", "humidity","tempStatus", "refresh"])
+        details(["temperature", "temperature1", "humidity","tempStatus", "refresh", "state"])
     }
 
     simulator {
@@ -180,6 +185,7 @@ def refresh() {
     if (state.minutesSinceUpdate > state.minutesoferror) {
 		log.error("Arduino hasn't responded in ${state.minutesSinceUpdate} minutes")
         sendEvent([name: "switch", value: "error",desriptionText:"Arduino Not available"]) 
+        sendEvent([name: "malfunction", value: "emergency", descriptionText: "Arduino in error for too long"])
         state.lastSuccessfulMessage = now()
     }
     return apiGet("/bedroom")
@@ -247,14 +253,36 @@ private def parseTstatData(Map tstat) {
         return null
     }
     if (tstat.containsKey("atemp")) {
-        //Float temp = tstat.atemp.toFloat()
+    	def myOffset = 0
+    	try{
+            if(tempOffset > 0 || tempOffset < 0) {
+				myOffset = tempOffset	
+            }
+        } catch (e) {
+        	TRACE("TEMPOFFSET NOT DEFINED")
+        }
+        def myTemp = tstat.atemp.toFloat() + myOffset
+
          TRACE("Contains atemp")
         def ev = [
             name:   "temperature",
-            value:  tstat.atemp.toFloat(),
+            value:  tstat.atemp.toFloat() + myOffset,
             
         ]
 
+        events << createEvent(ev)
+        if(myTemp > 40) {
+        	ev = [
+            	name: "malfunction",
+                value: "normal"
+                ]
+                
+        } else {
+        	ev = [
+            	name: "malfunction",
+                value: "emergency"
+            ]
+        }
         events << createEvent(ev)
         ev = [
         	name: "switch",
